@@ -1,0 +1,5 @@
+/**
+ * @dependencyTrackerEnabled true
+ */
+component {
+}
