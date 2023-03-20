@@ -79,7 +79,7 @@ component {
 		var renderedView = trim( renderViewlet( event="admin.datamanager.tracked_content_object.linkToTracker", args=interceptData ) );
 		
 		if ( len( renderedView ) ) {
-			interceptData.renderedLayout = ( interceptData.renderedLayout ?: "" ).reReplaceNoCase( '<ul class="breadcrumb">((.|\n)*?)</ul>', '<ul class="breadcrumb">\1</ul>#chr(10)##renderedView#' );
+			interceptData.renderedLayout = ( interceptData.renderedLayout ?: "" ).reReplaceNoCase( '<div class="navbar-header pull-right" role="navigation">.*<ul class="nav ace-nav">', '<div class="navbar-header pull-right" role="navigation"><ul class="nav ace-nav">#renderedView#' );
 		}
 	}
 
