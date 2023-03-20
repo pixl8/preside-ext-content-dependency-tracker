@@ -3,5 +3,5 @@
 	, "title"     : "Preside Content Dependency Tracker"
 	, "author"    : "Pixl8 Group"
 	, "version"   : "$VERSION_NUMBER"
-	, "dependsOn" : []
+	, "dependsOn" : [ "preside-ext-better-view-record-screen" ]
 }

@@ -15,10 +15,6 @@ component {
 			, title         = "cms:dependencyTracker.navigation.link"
 		};
 
-		settings.adminPermissions[ "dependencyTracker" ] = [ "navigate" ];
-
-		settings.adminRoles.sysAdmin.append( "dependencyTracker.*" );
-
 		conf.interceptors.prepend( { class="app.extensions.preside-ext-content-dependency-tracker.interceptors.ContentDependencyTrackerInterceptor", properties={} } );
 
 		settings.contentDependencyTracker = {
