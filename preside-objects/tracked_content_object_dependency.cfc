@@ -7,12 +7,12 @@
 component {
 	property name="id" type="numeric" dbtype="bigint" required=true generator="increment";
 
-	property name="content_object"           relationship="many-to-one" relatedTo="tracked_content_object" required=true;
-	property name="dependent_content_object" relationship="many-to-one" relatedTo="tracked_content_object" required=true;
+	property name="content_object"           relationship="many-to-one" relatedTo="tracked_content_object" required=true indexes="dependentObjectsAndField";
+	property name="dependent_content_object" relationship="many-to-one" relatedTo="tracked_content_object" required=true indexes="dependentObjectsAndField";
 
-	property name="content_object_field" type="string"  dbtype="varchar" maxlength=100 required=true;
+	property name="content_object_field" type="string"  dbtype="varchar" maxlength=100 required=true indexes="dependentObjectsAndField";
 	property name="is_soft_reference"    type="boolean" dbtype="bit"                   required=true;
-	property name="last_scan_process_id" type="string"  dbtype="varchar" maxlength=35  required=false autofilter=false;
+	property name="last_scan_process_id" type="string"  dbtype="varchar" maxlength=35  required=false autofilter=false indexes="lastScanProcessId";
 
 	property name="content_object_type"      type="string" formula="${prefix}content_object.content_type" renderer="objectName";
 	property name="content_object_id"        type="string" formula="${prefix}content_object.content_id";
