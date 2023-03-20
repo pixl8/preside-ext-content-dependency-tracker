@@ -1,0 +1,7 @@
+{
+	  "id"        : "preside-ext-content-dependency-tracker"
+	, "title"     : "Preside Content Dependency Tracker"
+	, "author"    : "Pixl8 Group"
+	, "version"   : "$VERSION_NUMBER"
+	, "dependsOn" : [ "preside-ext-better-view-record-screen" ]
+}

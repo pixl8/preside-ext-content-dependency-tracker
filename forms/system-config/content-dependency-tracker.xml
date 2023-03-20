@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form i18nBaseUri="system-config.content-dependency-tracker:">
+	<tab id="default">
+		<fieldset id="default">
+			<field name="enabled"                         default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="fk_scanning_enabled"             default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="soft_reference_scanning_enabled" default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="hide_all_irrelevant_records"     default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="show_hidden_records"             default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="show_all_orphaned_records"       default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+			<field name="single_record_scanning"          default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+		</fieldset>
+	</tab>
+</form>
