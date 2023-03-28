@@ -69,5 +69,7 @@ component {
 				, "admin.emailcenter.customTemplates.logs"            = { contentType="email_template", contentIdParam="id"       }
 			}
 		};
+
+		settings.enum.dependencyTrackerContentTypes = StructKeyArray( settings.contentDependencyTracker.trackObjects );
 	}
 }
