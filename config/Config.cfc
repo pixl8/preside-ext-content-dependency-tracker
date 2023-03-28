@@ -42,6 +42,13 @@ component {
 						, site  = { enabled=false }
 					}
 				}
+				, accessDenied       = { enabled=true }
+				, forgotten_password = { enabled=true }
+				, homepage           = { enabled=true }
+				, login              = { enabled=true }
+				, notFound           = { enabled=true }
+				, reset_password     = { enabled=true }
+				, standard_page      = { enabled=true }
 			}
 			, linkToTrackerEvents = {
 				  "admin.datamanager.viewRecord"                      = { contentTypeParam="object"   , contentIdParam="id"       }

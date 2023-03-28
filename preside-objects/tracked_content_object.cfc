@@ -9,8 +9,8 @@
 component {
 	property name="label" renderer="trackedContentObjectLabelRenderer";
 	property name="id"                   type="numeric" dbtype="bigint"                  required=true generator="increment";
-	property name="content_type"         type="string"  dbtype="varchar" maxlength=50    required=true renderer="objectName" uniqueIndexes="contentTypeAndId";
-	property name="content_id"           type="string"  dbtype="varchar" maxlength=35    required=true                       uniqueIndexes="contentTypeAndId";
+	property name="content_type"         type="string"  dbtype="varchar" maxlength=50    required=true renderer="objectName" uniqueIndexes="contentTypeAndId|1";
+	property name="content_id"           type="string"  dbtype="varchar" maxlength=35    required=true                       uniqueIndexes="contentTypeAndId|2";
 	property name="orphaned"             type="boolean" dbtype="bit"     default="false" required=true                       indexes="orphaned";
 	property name="hidden"               type="boolean" dbtype="bit"     default="false" required=true                       indexes="hidden";
 	property name="requires_scanning"    type="boolean" dbtype="bit"     default="false" required=true                       indexes="requires_scanning";
