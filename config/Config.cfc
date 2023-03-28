@@ -9,8 +9,8 @@ component {
 		settings.adminConfigurationMenuItems.append( "dependencyTracker" );
 
 		settings.adminMenuItems.dependencyTracker = {
-			  buildLinkArgs = { objectName="tracked_content_object" }
-			, activeChecks  = { datamanagerObject="tracked_content_object" }
+			  buildLinkArgs = { objectName="tracked_content_record" }
+			, activeChecks  = { datamanagerObject="tracked_content_record" }
 			, icon          = "fa-exchange"
 			, title         = "cms:dependencyTracker.navigation.link"
 		};
@@ -51,25 +51,25 @@ component {
 				, standard_page      = { enabled=true }
 			}
 			, linkToTrackerEvents = {
-				  "admin.datamanager.viewRecord"                      = { contentTypeParam="object"   , contentIdParam="id"       }
-				, "admin.datamanager.editRecord"                      = { contentTypeParam="object"   , contentIdParam="id"       }
-				, "admin.assetmanager.editAsset"                      = { contentType="asset"         , contentIdParam="asset"    }
-				, "admin.sites.editSite"                              = { contentType="site"          , contentIdParam="id"       }
-				, "admin.sitetree.editPage"                           = { contentType="page"          , contentIdParam="id"       }
-				, "admin.emailcenter.systemTemplates.template"        = { contentType="email_template", contentIdParam="template" }
-				, "admin.emailcenter.systemTemplates.edit"            = { contentType="email_template", contentIdParam="template" }
-				, "admin.emailcenter.systemTemplates.configurelayout" = { contentType="email_template", contentIdParam="template" }
-				, "admin.emailcenter.systemTemplates.stats"           = { contentType="email_template", contentIdParam="template" }
-				, "admin.emailcenter.systemTemplates.logs"            = { contentType="email_template", contentIdParam="template" }
-				, "admin.emailCenter.customTemplates.preview"         = { contentType="email_template", contentIdParam="id"       }
-				, "admin.emailcenter.customTemplates.edit"            = { contentType="email_template", contentIdParam="id"       }
-				, "admin.emailcenter.customTemplates.settings"        = { contentType="email_template", contentIdParam="id"       }
-				, "admin.emailcenter.customTemplates.configureLayout" = { contentType="email_template", contentIdParam="id"       }
-				, "admin.emailcenter.customTemplates.stats"           = { contentType="email_template", contentIdParam="id"       }
-				, "admin.emailcenter.customTemplates.logs"            = { contentType="email_template", contentIdParam="id"       }
+				  "admin.datamanager.viewRecord"                      = { objectNameParam="object"   , recordIdParam="id"       }
+				, "admin.datamanager.editRecord"                      = { objectNameParam="object"   , recordIdParam="id"       }
+				, "admin.assetmanager.editAsset"                      = { objectName="asset"         , recordIdParam="asset"    }
+				, "admin.sites.editSite"                              = { objectName="site"          , recordIdParam="id"       }
+				, "admin.sitetree.editPage"                           = { objectName="page"          , recordIdParam="id"       }
+				, "admin.emailcenter.systemTemplates.template"        = { objectName="email_template", recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.edit"            = { objectName="email_template", recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.configurelayout" = { objectName="email_template", recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.stats"           = { objectName="email_template", recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.logs"            = { objectName="email_template", recordIdParam="template" }
+				, "admin.emailCenter.customTemplates.preview"         = { objectName="email_template", recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.edit"            = { objectName="email_template", recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.settings"        = { objectName="email_template", recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.configureLayout" = { objectName="email_template", recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.stats"           = { objectName="email_template", recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.logs"            = { objectName="email_template", recordIdParam="id"       }
 			}
 		};
 
-		settings.enum.dependencyTrackerContentTypes = StructKeyArray( settings.contentDependencyTracker.trackObjects );
+		settings.enum.dependencyTrackerObjectNames = StructKeyArray( settings.contentDependencyTracker.trackObjects );
 	}
 }
