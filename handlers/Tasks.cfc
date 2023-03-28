@@ -3,9 +3,9 @@ component {
 	property name="contentDependencyTrackerService" inject="contentDependencyTrackerService";
 
 	/**
-	 * Full scanning of content objects to be tracked
+	 * Full scanning of content records to be tracked
 	 *
-	 * @displayName      [1] Scan all content object dependencies
+	 * @displayName      [1] Scan all content record dependencies
 	 * @displayGroup     Content
 	 * @exclusivityGroup ContentDependencyTracker
 	 * @schedule         0 42 2 * * *
@@ -18,9 +18,9 @@ component {
 	}
 
 	/**
-	 * Delta scanning of content objects to be tracked - only those marked as scanning-required
+	 * Delta scanning of content records to be tracked - only those marked as scanning-required
 	 *
-	 * @displayName      [2] Scan changed content object for dependencies
+	 * @displayName      [2] Scan changed content records for dependencies
 	 * @displayGroup     Content
 	 * @exclusivityGroup ContentDependencyTracker
 	 * @schedule         0 *\/5 * * * *
