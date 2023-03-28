@@ -172,7 +172,7 @@ component extends="app.extensions.preside-ext-better-view-record-screen.base.Bet
 			);
 		}
 
-		// default to use general datamanager logic
+		// default to use general datamanager logic / Preside core can also automatically deal with page type objects to automatically link to the site tree
 		return event.buildAdminLink( objectName=arguments.contentType, recordId=arguments.contentId );
 	}
 
