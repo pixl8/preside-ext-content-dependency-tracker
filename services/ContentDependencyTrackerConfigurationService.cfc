@@ -153,6 +153,12 @@ component {
 		return settings.linkToTrackerEvents ?: {};
 	}
 
+	public string function getLinkToTrackerView() {
+		var settings = _getSettings();
+		var result   = settings.linkToTrackerView ?: "";
+		return len( result ) ? result : "/admin/datamanager/tracked_content_record/_linkToTracker";
+	}
+
 // PRIVATE FUNCTIONS
 	private struct function _getAllObjectSettingsFromConfig() {
 		var settings = _getSettings();

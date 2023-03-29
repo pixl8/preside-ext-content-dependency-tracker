@@ -198,17 +198,6 @@ component extends="app.extensions.preside-ext-better-view-record-screen.base.Bet
 		return event.buildAdminLink( objectName=arguments.objectName, recordId=arguments.recordId );
 	}
 
-	public string function linkToTracker( event, rc, prc ) {
-
-		var contentRecord = trackerService.detectContentRecordByRequestContext( rc );
-
-		if ( !isEmpty( contentRecord ) ) {
-			return renderView( view="/admin/datamanager/tracked_content_record/_linkToTracker", args=contentRecord );
-		}
-
-		return "";
-	}
-
 	private void function extraTopRightButtonsForObject( event, rc, prc, args={} ) {
 		var objectName = args.objectName ?: "";
 
