@@ -7,7 +7,7 @@
 	<li>
 		<a id="dependencyTrackerMenuItem" href="#event.buildAdminLink( objectName="tracked_content_record", recordId=id )#" title="#translateResource( uri="preside-objects.tracked_content_record:linkToTracker.tooltip", data=[ dependsOn, dependentBy ] )#">
 			<i class="fa fa-code-fork"></i>
-			<span class="badge">#dependsOn#/#dependentBy#</span>
+			<span class="badge">#dependsOn#|#dependentBy#</span>
 		</a>
 	</li>
 </cfoutput>

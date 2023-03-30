@@ -50,7 +50,7 @@ component {
 			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#)..." );
 
 			var contentRecordIdMap = !_isFullProcessing() ? _getScanningRequiredContentRecordMap()          : {};
-			var objectNames        =  _isFullProcessing() ? _getConfiguration().getTrackingEnabledObjects() : structKeyArray( contentRecordIdMap );
+			var objectNames        =  _isFullProcessing() ? _getConfiguration().getAllTrackableObjects() : structKeyArray( contentRecordIdMap );
 
 			if ( _isFullProcessing() ) {
 				_cacheContentRecordData();
@@ -158,12 +158,13 @@ component {
 			  filter          = "orphaned = :orphaned and exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams    = { orphaned=true }
 			, recordCountOnly = true
+			, useCache        = false
 		);
 		if ( broken > 0 ) {
 			logger.info( "Found [#broken#] orphaned content record(s) that other content records depend on (Broken dependencies). Those have not been deleted." );
 		}
 
-		var validObjectNames = _getConfiguration().getTrackingEnabledObjects();
+		var validObjectNames = _getConfiguration().getAllTrackableObjects();
 
 		if ( !isEmpty( validObjectNames ) ) {
 			deleted = _getDependencyDao().deleteData(
@@ -189,6 +190,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id" ]
+			, useCache     = false
 		);
 
 		for ( var record in records ) {
@@ -202,6 +204,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id", "label", "depends_on_count", "dependent_by_count" ]
+			, useCache     = false
 		);
 
 		for ( var record in records ) {
@@ -296,7 +299,7 @@ component {
 		var selectFields = [ "#idField# as id", "#labelField# as label" ];
 		var filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
 
-		var records = $getPresideObjectService().selectData( objectName=objectName, filter=filter, selectFields=selectFields );
+		var records = $getPresideObjectService().selectData( objectName=objectName, filter=filter, selectFields=selectFields, useCache=false );
 
 		logger.info( "Now scanning [#records.recordCount#] [#arguments.objectName#] record(s)..." );
 
@@ -384,7 +387,7 @@ component {
 		arrayAppend( selectFields, idField );
 
 		var filter                  = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
-		var records                 = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields );
+		var records                 = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, useCache=false );
 		var propName                = "";
 		var propValue               = "";
 		var sourceRecordId          = "";
@@ -412,7 +415,7 @@ component {
 					relatedContentRecordIds = [ propValue ];
 					relationTargetObject    = props[ propName ].relatedTo;
 					if ( props[ propName ].relationship == "many-to-many" ) {
-						relatedContentRecordIds = listToArray( relatedContentRecordIds );
+						relatedContentRecordIds = listToArray( propValue );
 					}
 				}
 				else {
@@ -489,7 +492,7 @@ component {
 	private any function _getTrackedContentRecordIds() {
 		return _simpleLocalCache( "getTrackedContentRecordIds", function() {
 
-			var records  = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true );
+			var records  = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true, useCache=false );
 			var result = createObject( "java", "java.util.HashSet" ).init();
 
 			if ( records.recordCount ) {
@@ -503,7 +506,7 @@ component {
 	private struct function _getMappedContentRecordIds() {
 		return _simpleLocalCache( "getMappedContentRecordIds", function() {
 
-			var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ] );
+			var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ], useCache=false );
 			var result  = {};
 
 			loop query="records" {
@@ -530,7 +533,7 @@ component {
 		var type     = "";
 
 		// either a content type is supplied or it's unknown and therefore we need to consider all content types
-		var objectNames = len( arguments.objectName ) ? [ arguments.objectName ] : _getConfiguration().getTrackingEnabledObjects();
+		var objectNames = len( arguments.objectName ) ? [ arguments.objectName ] : _getConfiguration().getAllTrackableObjects();
 
 		for ( var recordId in arguments.recordIds ) {
 			
@@ -592,6 +595,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { requires_scanning=true }
 			, selectFields = [ "object_name", "record_id" ]
+			, useCache     = false
 		);
 
 		var result = {};

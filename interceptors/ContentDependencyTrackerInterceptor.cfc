@@ -90,7 +90,7 @@ component {
 			return true;
 		}
 
-		return !configService.isTrackingEnabledObject( objectName=interceptData.objectName ?: "" );
+		return !configService.isTrackableObject( objectName=interceptData.objectName ?: "" );
 	}
 
 	private boolean function _skipTrivialInterceptors( interceptData ) {
