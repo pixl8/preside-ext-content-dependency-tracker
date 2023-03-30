@@ -1,7 +1,8 @@
 component {
 
-	property name="contentDependencyTrackerService" inject="delayedInjector:contentDependencyTrackerService";
-	property name="presideObjectService"            inject="delayedInjector:presideObjectService";
+	property name="trackerService"       inject="delayedInjector:contentDependencyTrackerService";
+	property name="configService"        inject="delayedInjector:contentDependencyTrackerConfigurationService";
+	property name="presideObjectService" inject="delayedInjector:presideObjectService";
 
 	public void function configure() {}
 
@@ -15,7 +16,7 @@ component {
 		var id         = len( trim( interceptData.newId ?: "" ) ) ? trim( interceptData.newId ) : trim( interceptData.data.id ?: "" );
 
 		if ( len( id ) ) {
-			contentDependencyTrackerService.createContentObject( objectName=objectName, id=id );
+			trackerService.createContentRecord( objectName=objectName, id=id );
 		}
 	}
 
@@ -29,7 +30,7 @@ component {
 		var id         = Len( Trim( interceptData.id ?: "" ) ) ? trim( interceptData.id ) : trim( interceptData.data.id ?: "" );
 
 		if ( len( id ) ) {
-			contentDependencyTrackerService.flagContentObjectForScanning( objectName=objectName, id=id );
+			trackerService.flagContentRecordForScanning( objectName=objectName, id=id );
 		}
 	}
 
@@ -47,7 +48,7 @@ component {
 
 			if ( records.recordCount ) {
 				var ids = queryColumnData( records, idField );
-				contentDependencyTrackerService.flagContentObjectsDeleted( objectName=objectName, ids=ids );
+				trackerService.flagContentRecordsDeleted( objectName=objectName, ids=ids );
 			}
 		}
 		catch ( any e ) {
@@ -76,7 +77,7 @@ component {
 			return;
 		}
 
-		var renderedView = trim( renderViewlet( event="admin.datamanager.tracked_content_object.linkToTracker", args=interceptData ) );
+		var renderedView = trim( renderViewlet( event="admin.datamanager.tracked_content_record.linkToTracker", args=interceptData ) );
 		
 		if ( len( renderedView ) ) {
 			interceptData.renderedLayout = ( interceptData.renderedLayout ?: "" ).reReplaceNoCase( '<div class="navbar-header pull-right" role="navigation">.*<ul class="nav ace-nav">', '<div class="navbar-header pull-right" role="navigation"><ul class="nav ace-nav">#renderedView#' );
@@ -85,11 +86,11 @@ component {
 
 	private boolean function _skip( interceptData ) {
 
-		if ( _skipTrivialInterceptors( interceptData ) || _skipDependencyTracking( interceptData ) || !contentDependencyTrackerService.isEnabled() || !contentDependencyTrackerService.isSingleRecordScanningEnabled() ) {
+		if ( _skipTrivialInterceptors( interceptData ) || _skipDependencyTracking( interceptData ) || !configService.isEnabled() || !configService.isSingleRecordScanningEnabled() ) {
 			return true;
 		}
 
-		return !contentDependencyTrackerService.isTrackingEnabledObject( objectName=interceptData.objectName ?: "" );
+		return !configService.isTrackableObject( objectName=interceptData.objectName ?: "" );
 	}
 
 	private boolean function _skipTrivialInterceptors( interceptData ) {
