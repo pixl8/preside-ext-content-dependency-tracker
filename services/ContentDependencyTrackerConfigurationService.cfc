@@ -52,12 +52,100 @@ component {
 		return _isBooleanSystemSettingEnabled( setting="enabled" );
 	}
 
+	public array function getAllTrackableObjects() {
+		return _simpleLocalCache( "getAllTrackableObjects", function() {
+			var configuredObjects   = getTrackingEnabledObjects();
+			var autoTrackingObjects = getAutoTrackedObjects();
+
+			return arrayMerge( configuredObjects, autoTrackingObjects );
+		} );
+		
+	}
+
+	public boolean function isTrackableObject( required string objectName ) {
+		return ArrayContainsNoCase( getAllTrackableObjects(), arguments.objectName );
+	}
+
 	public array function getTrackingEnabledObjects() {
 		return _mergeAnnotatedAndConfiguredBooleanObjectLists( annotation="dependencyTrackerEnabled", setting="enabled" );
 	}
 
 	public boolean function isTrackingEnabledObject( required string objectName ) {
 		return ArrayContainsNoCase( getTrackingEnabledObjects(), arguments.objectName );
+	}
+
+	public array function getTrackingDisabledObjects() {
+		return _mergeAnnotatedAndConfiguredBooleanObjectLists( annotation="dependencyTrackerEnabled", setting="enabled", expected=false );
+	}
+
+	public boolean function isTrackingDisabledObject( required string objectName ) {
+		return ArrayContainsNoCase( getTrackingDisabledObjects(), arguments.objectName );
+	}
+
+	public array function getAutoTrackedObjects() {
+
+		return _simpleLocalCache( "getAutoTrackedObjects", function() {
+
+			if ( !_autoTrackRelatedObjects() ) {
+				return [];
+			}
+
+			var result                 = [];
+			var autoEnableDbTextFields = _autoEnableDbTextFields();
+
+			var objectNames = $getPresideObjectService().listObjects();
+
+			for ( var objectName in objectNames ) {
+				if ( isTrackingEnabledObject( objectName ) ) {
+					// we do not need to add this to the list of auto tracking enabled objects because it is already explicitly enabled
+					continue;
+				}
+				if ( isTrackingDisabledObject( objectName ) ) {
+					// we do not need to add this because it has been explicitly disabled for tracking manually
+					continue;
+				}
+
+				// find FKs that relate to a tracking enabled object and/or if soft references are enabled and all db text field scanning is enabled, then it's also a match
+				var props              = $getPresideObjectService().getObjectProperties( objectName );
+				var relevantFieldFound = false;
+				
+				for ( var propName in props ) {
+
+					var relationship    = props[ propName ].relationship ?: "";
+					var relatedTo       = props[ propName ].relatedTo    ?: "";
+					var dbType          = props[ propName ].dbType       ?: "";
+					var ondelete        = props[ propName ].ondelete     ?: "";
+					var control         = props[ propName ].control      ?: "";
+					var isRelationship  = len( relationship ) && len( relatedTo ) && relationship != "none" && relatedTo != "none";
+					var cascadeOnDelete = left ( ondelete, 7 ) == "cascade";
+
+					if ( isRelationship && ( ( relationship == "one-to-many" ) || ( relationship == "select-data-view" ) ) ) {
+						continue;
+					}
+
+					if ( isRelationship && ( relationship == "many-to-one" ) && cascadeOnDelete ) {
+						continue;
+					}
+
+					if ( ( isRelationship && isTrackingEnabledObject( relatedTo ) )
+						|| ( !isRelationship && autoEnableDbTextFields && ( dbType == "text" ) && ( control != "textarea" ) )
+					) {
+						relevantFieldFound = true;
+						break;
+					}
+				}
+
+				if ( relevantFieldFound ) {
+					arrayAppend( result, objectName );
+				}
+			}
+
+			return result;
+		} );
+	}
+
+	public boolean function isAutoTrackedObject( required string objectName ) {
+		return ArrayContainsNoCase( getAutoTrackedObjects(), arguments.objectName );
 	}
 
 	public boolean function showAllOrphanedRecords() {
@@ -73,7 +161,7 @@ component {
 	}
 
 	public boolean function hideIrrelevantRecords( required string objectName ) {
-		return ArrayContainsNoCase( _getHideIrrelevantRecordsObjects(), arguments.objectName );
+		return ArrayContainsNoCase( _getHideIrrelevantRecordsObjects(), arguments.objectName ) || isAutoTrackedObject( arguments.objectName );
 	}
 
 	public boolean function hasCustomLabelGenerator( required string objectName ) {
@@ -107,11 +195,11 @@ component {
 				var dbType         = props[ propName ].dbType       ?: "";
 				var isRelationship = len( relationship ) && len( relatedTo ) && relationship != "none" && relatedTo != "none";
 
-				if ( isRelationship && relationship == "one-to-many" ) {
+				if ( isRelationship && ( ( relationship == "one-to-many" ) || ( relationship == "select-data-view" ) ) ) {
 					continue;
 				}
 
-				if ( isRelationship && !isTrackingEnabledObject( relatedTo ) ) {
+				if ( isRelationship && !isTrackableObject( relatedTo ) ) {
 					continue;
 				}
 
@@ -245,29 +333,29 @@ component {
 		} );
 	}
 
-	private array function _mergeAnnotatedAndConfiguredBooleanObjectLists( required string annotation, required string setting ) {
+	private array function _mergeAnnotatedAndConfiguredBooleanObjectLists( required string annotation, required string setting, boolean expected=true ) {
 		var args = arguments;
-		return _simpleLocalCache( "_mergeAnnotatedAndConfiguredBooleanObjectLists_#args.annotation#_#args.setting#", function() {
+		return _simpleLocalCache( "_mergeAnnotatedAndConfiguredBooleanObjectLists_#args.annotation#_#args.setting#_#args.expected#", function() {
 			var result = [];
 
-			var objectNames            = $getPresideObjectService().listObjects();
-			var annotatedTrueObjects   = _getAnnotatedBooleanObjectList( annotation=args.annotation, expected=true  );
-			var annotatedFalseObjects  = _getAnnotatedBooleanObjectList( annotation=args.annotation, expected=false );
-			var configuredTrueObjects  = _getConfiguredBooleanObjectList( setting=args.setting, expected=true  );
-			var configuredFalseObjects = _getConfiguredBooleanObjectList( setting=args.setting, expected=false );
+			var objectNames                  = $getPresideObjectService().listObjects();
+			var annotatedExpectedObjects     = _getAnnotatedBooleanObjectList( annotation=args.annotation, expected=args.expected  );
+			var annotatedNotExpectedObjects  = _getAnnotatedBooleanObjectList( annotation=args.annotation, expected=!args.expected );
+			var configuredExpectedObjects    = _getConfiguredBooleanObjectList( setting=args.setting, expected=args.expected );
+			var configuredNotExpectedObjects = _getConfiguredBooleanObjectList( setting=args.setting, expected=!args.expected );
 
 			for ( var objectName in objectNames ) {
-				if ( arrayFindNoCase( annotatedFalseObjects, objectName ) ) {
+				if ( arrayFindNoCase( annotatedNotExpectedObjects, objectName ) ) {
 					continue;
 				}
-				if ( arrayFindNoCase( annotatedTrueObjects, objectName ) ) {
+				if ( arrayFindNoCase( annotatedExpectedObjects, objectName ) ) {
 					arrayAppend( result, objectName );
 					continue;
 				}
-				if ( arrayFindNoCase( configuredFalseObjects, objectName ) ) {
+				if ( arrayFindNoCase( configuredNotExpectedObjects, objectName ) ) {
 					continue;
 				}
-				if ( arrayFindNoCase( configuredTrueObjects, objectName ) ) {
+				if ( arrayFindNoCase( configuredExpectedObjects, objectName ) ) {
 					arrayAppend( result, objectName );
 				}
 			}
@@ -410,6 +498,11 @@ component {
 	private boolean function _autoEnableDbTextFields() {
 		var settings = _getSettings();
 		return isBoolean( settings.autoEnableDbTextFields ?: "" ) && settings.autoEnableDbTextFields;
+	}
+
+	private boolean function _autoTrackRelatedObjects() {
+		var settings = _getSettings();
+		return isBoolean( settings.autoTrackRelatedObjects ?: "" ) && settings.autoTrackRelatedObjects;
 	}
 
 	private boolean function _isBooleanSystemSettingEnabled( required string setting ) {
