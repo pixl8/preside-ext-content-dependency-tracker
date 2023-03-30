@@ -11,7 +11,7 @@ component {
 		settings.adminMenuItems.dependencyTracker = {
 			  buildLinkArgs = { objectName="tracked_content_record" }
 			, activeChecks  = { datamanagerObject="tracked_content_record" }
-			, icon          = "fa-exchange"
+			, icon          = "fa-code-fork"
 			, title         = "cms:dependencyTracker.navigation.link"
 		};
 
@@ -19,6 +19,7 @@ component {
 
 		settings.contentDependencyTracker = {
 			  autoEnableDbTextFields = false
+			, linkToTrackerView = "/admin/datamanager/tracked_content_record/_linkToTracker"
 			, trackObjects = {
 				  asset                  = { enabled=true }
 				, site                   = { enabled=true }
