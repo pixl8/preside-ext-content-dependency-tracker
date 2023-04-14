@@ -19,7 +19,7 @@ ATTENTION: as of now this extension depends on the better-view-record-screen ext
 From the root of your application, type the following command in a terminal:
 
 ```
-box install preside-ext-content-dependency-tracker --saveDev
+box install preside-ext-content-dependency-tracker
 ```
 
 ## Configuration
@@ -28,7 +28,8 @@ All settings for this extension are located in the `Config.cfc` as in the follow
 
 ```
 settings.contentDependencyTracker = {
-	  autoEnableDbTextFields = false
+	  autoEnableDbTextFields  = false
+	, autoTrackRelatedObjects = false
 	, trackObjects = {
 		  asset  = { enabled=true }
 		...
@@ -65,6 +66,8 @@ settings.contentDependencyTracker = {
 ```
 
 `autoEnableDbTextFields` will automatically enable all `dbtype="text"` fields on all objects that are enabled for tracking.
+
+`autoTrackRelatedObjects` will automatically track also related content objects of other objects that are marked as trackable. For example you might explicitly mark links and assets as trackable but nothing else. Then when enabling auto-tracking, the system will automatically also determine any object that links to assets or links. Only content objects that are explictely excluded from tracking (enabled=false) will then not be tracked. Content object that are not explicitly marked to be tracked will be hidden by default from the Dependency Tracker listing, but will show up as dependencies in trackable objects.
 
 `trackObjects.{any_preside_object}.enabled` will enable (or disable) an object for tracking.
 
