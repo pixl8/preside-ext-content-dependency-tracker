@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2
+
+* added global feature for dependency tracker (not used in logic, just for app and other extension to know that the extension is installed)
+
 ## v0.6.1
 
 * updated Readme
