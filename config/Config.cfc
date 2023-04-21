@@ -4,6 +4,7 @@ component {
 		var conf     = arguments.config;
 		var settings = conf.settings ?: {};
 
+		settings.features.contentDependencyTracker      = { enabled=true , siteTemplates=[ "*" ], widgets=[] };
 		settings.features.globalLinkToDependencyTracker = { enabled=false, siteTemplates=[ "*" ], widgets=[] };
 
 		settings.adminConfigurationMenuItems.append( "dependencyTracker" );
