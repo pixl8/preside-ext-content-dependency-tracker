@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.6
+
+* fixing missing filter during delta scanning
+
 ## v0.6.5
 
 * support task interruption, increase task exclusive lock time
