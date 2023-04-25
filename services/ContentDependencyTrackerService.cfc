@@ -28,7 +28,7 @@ component {
 // PUBLIC FUNCTIONS
 	public boolean function scanContentDependencies( required boolean full, any logger ) {
 
-		lock name="contentDependencyTrackerProcessingLock" type="exclusive" timeout=1 {
+		lock name="contentDependencyTrackerProcessingLock" type="exclusive" timeout=30 {
 
 			if ( !_getConfiguration().isEnabled() ) {
 				logger.warn( "Tracking is disabled, aborting. Please enable in system settings." );
@@ -62,6 +62,10 @@ component {
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+				if ( $isInterrupted() ) {
+					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
+					return false;
+				}
 			}
 
 			if ( _isFullProcessing() ) {
@@ -81,6 +85,10 @@ component {
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+				if ( $isInterrupted() ) {
+					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
+					return false;
+				}
 			}
 
 			var updated = 0;
@@ -97,6 +105,10 @@ component {
 				);
 				if ( updated > 0 ) {
 					logger.info( "hiding [#updated#] [#objectName#] record(s) without dependencies" );
+				}
+				if ( $isInterrupted() ) {
+					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
+					return false;
 				}
 			}
 

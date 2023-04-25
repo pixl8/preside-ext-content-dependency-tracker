@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.5
+
+* support task interruption, increase task exclusive lock time
+
 ## v0.6.4
 
 * fix to support rare case of content objects invalid labelField definitions
