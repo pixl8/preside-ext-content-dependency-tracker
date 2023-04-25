@@ -288,13 +288,14 @@ component {
 			return;
 		}
 
-		var idField    = $getPresideObjectService().getIdField( objectName );
-		var labelField = $getPresideObjectService().getLabelField( objectName );
+		var idField                = $getPresideObjectService().getIdField( objectName );
+		var labelField             = $getPresideObjectService().getLabelField( objectName );
+		var labelFieldColumnExists = $getPresideObjectService().fieldExists( objectName, labelField );
 
 		var hasCustomLabelGenerator = _getConfiguration().hasCustomLabelGenerator( arguments.objectName );
 		var customLabelGenerator    = hasCustomLabelGenerator ? _getConfiguration().getCustomLabelGenerator( arguments.objectName ) : "";
 
-		labelField = len( labelField ) ? labelField : idField;
+		labelField = ( len( labelField ) && labelFieldColumnExists ) ? labelField : idField;
 
 		var selectFields = [ "#idField# as id", "#labelField# as label" ];
 		var filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};

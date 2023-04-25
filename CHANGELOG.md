@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.4
+
+* fix to support rare case of content objects invalid labelField definitions
+
 ## v0.6.3
 
 * fix to support rare case of content objects with null values in labels
