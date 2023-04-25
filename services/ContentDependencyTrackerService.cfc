@@ -308,9 +308,12 @@ component {
 		var counter = { inserted=0, updated=0 };
 
 		for ( var record in records ) {
-			label = record.label;
+			label = trim( record.label );
 			if ( hasCustomLabelGenerator ) {
 				label = $renderContent( renderer=customLabelGenerator, data=record.id );
+			}
+			if ( isEmpty( label ) ) {
+				label = record.id;
 			}
 			updated = _getContentRecordDao().updateData(
 				  data   = {
