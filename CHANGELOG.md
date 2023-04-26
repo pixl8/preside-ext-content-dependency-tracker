@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.7
+
+* added missing link to tracker event config for formbuilder forms, added asset folder for scanning
+
 ## v0.6.6
 
 * fixing missing filter during delta scanning
