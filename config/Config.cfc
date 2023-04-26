@@ -113,6 +113,29 @@ component {
 			}
 		};
 
-		settings.enum.dependencyTrackerObjectNames = StructKeyArray( settings.contentDependencyTracker.trackObjects );
+		settings.enum.dependencyTrackerObjectNames = [
+			  "asset"
+			, "site"
+			, "rules_engine_condition"
+			, "page"
+			, "system_config"
+			, "email_layout_config_item"
+			, "accessDenied"
+			, "forgotten_password"
+			, "homepage"
+			, "login"
+			, "notFound"
+			, "reset_password"
+			, "standard_page"
+			, "password_policy"
+			, "email_blueprint"
+			, "asset_folder"
+			, "formbuilder_form"
+			, "formbuilder_formaction"
+			, "formbuilder_formitem"
+			, "formbuilder_question"
+			, "email_template"
+			, "link"
+		];
 	}
 }
