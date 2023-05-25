@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.8
+
+* fix issue with brand new applications failing to startup with Content dependency tracker installed
+
 ## v0.6.7
 
 * added missing link to tracker event config for formbuilder forms, added asset folder for scanning
