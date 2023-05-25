@@ -85,8 +85,7 @@ component {
 	}
 
 	private boolean function _skip( interceptData ) {
-
-		if ( _skipTrivialInterceptors( interceptData ) || _skipDependencyTracking( interceptData ) || !configService.isEnabled() || !configService.isSingleRecordScanningEnabled() ) {
+		if ( _appIsStarting() || _skipTrivialInterceptors( interceptData ) || _skipDependencyTracking( interceptData ) || !configService.isEnabled() || !configService.isSingleRecordScanningEnabled() ) {
 			return true;
 		}
 
@@ -99,5 +98,9 @@ component {
 
 	private boolean function _skipDependencyTracking( interceptData ) {
 		return IsBoolean( interceptData.skipDependencyTracking ?: "" ) && interceptData.skipDependencyTracking;
+	}
+
+	private boolean function _appIsStarting( interceptData ) {
+		return IsBoolean( request._isPresideReloadRequest ?: "" ) && request._isPresideReloadRequest;
 	}
 }
