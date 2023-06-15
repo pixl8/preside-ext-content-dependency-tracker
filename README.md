@@ -12,7 +12,7 @@ In detail the extension provides the following functionality:
 * Possibility to identifiy orphans and broken dependencies
 * link in and out from/to Preside System (e.g. from an asset in asset manager see number of dependencies and directly link into the tracker)
 
-ATTENTION: This extension makes use of the enhanced record views introduced in Preside 10.24.0 and will not work with any previous version.
+ATTENTION: as of now this extension depends on the better-view-record-screen extension which is not open sourced (yet), stay tuned, as it will be soon...
 
 ## Installation
 
