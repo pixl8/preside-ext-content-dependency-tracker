@@ -1,4 +1,4 @@
-component extends="preside.system.base.EnhancedDataManagerBase" {
+component extends="app.extensions.preside-ext-better-view-record-screen.base.BetterDatamanagerBase" {
 
 	property name="trackerService" inject="ContentDependencyTrackerService";
 	property name="configService"  inject="ContentDependencyTrackerConfigurationService";
