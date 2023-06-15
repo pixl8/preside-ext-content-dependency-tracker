@@ -1,8 +1,13 @@
 # Changelog
 
+## v0.7.0
+
+* re-introduced support for bundled enhanced record view of Preside 10.24.0
+
 ## v0.6.10
 
 * reverted changes from v0.6.9
+
 ## v0.6.9
 
 * adding support for bundled enhanced record view of Preside 10.24.0
