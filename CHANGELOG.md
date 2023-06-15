@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.9
+
+* adding support for bundled enhanced record view of Preside 10.24.0
+
 ## v0.6.8
 
 * fix issue with brand new applications failing to startup with Content dependency tracker installed
