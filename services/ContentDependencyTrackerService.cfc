@@ -403,7 +403,7 @@ component {
 		arrayAppend( selectFields, idField );
 
 		var filter                  = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
-		var records                 = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, useCache=false );
+		var records                 = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );
 		var propName                = "";
 		var propValue               = "";
 		var sourceRecordId          = "";
