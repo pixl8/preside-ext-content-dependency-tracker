@@ -3,7 +3,7 @@
  * @dataManagerEnabled           true
  * @dataManagerGridFields        object_name,label,depends_on_count,dependent_by_count,datecreated,datemodified
  * @datamanagerHiddenGridFields  record_id,orphaned
- * @datamanagerAllowedOperations read
+ * @datamanagerAllowedOperations navigate,read
  * @labelRenderer                tracked_content_record
  */
 component {
