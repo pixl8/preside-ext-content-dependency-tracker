@@ -7,6 +7,16 @@ component {
 		settings.features.contentDependencyTracker      = { enabled=true , siteTemplates=[ "*" ], widgets=[] };
 		settings.features.globalLinkToDependencyTracker = { enabled=false, siteTemplates=[ "*" ], widgets=[] };
 
+		settings.adminPermissions.dependencyTracker = [ "navigate", "read", "add", "edit", "clone", "delete" ];
+
+		settings.adminRoles.sysadmin      = settings.adminRoles.sysadmin      ?: [];
+		settings.adminRoles.contentadmin  = settings.adminRoles.contentadmin  ?: [];
+		settings.adminRoles.contenteditor = settings.adminRoles.contenteditor ?: [];
+
+		arrayAppend( settings.adminRoles.sysadmin     , "dependencyTracker.*" );
+		arrayAppend( settings.adminRoles.contentadmin , "dependencyTracker.*" );
+		arrayAppend( settings.adminRoles.contenteditor, "dependencyTracker.*" );
+
 		settings.adminConfigurationMenuItems.append( "dependencyTracker" );
 
 		settings.adminMenuItems.dependencyTracker = {
@@ -14,7 +24,7 @@ component {
 			, activeChecks  = { datamanagerObject="tracked_content_record" }
 			, icon          = "fa-code-fork"
 			, title         = "cms:dependencyTracker.navigation.link"
-			, permissionkey = "presideobject.tracked_content_record.navigate"
+			, permissionkey = "dependencyTracker.navigate"
 		};
 
 		conf.interceptors.prepend( { class="app.extensions.preside-ext-content-dependency-tracker.interceptors.ContentDependencyTrackerInterceptor", properties={} } );
