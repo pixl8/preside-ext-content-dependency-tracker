@@ -4,6 +4,10 @@
 
 * re-introduced support for bundled enhanced record view of Preside 10.24.0
 
+## v0.6.11
+
+* Fix some admin permission checking issues
+
 ## v0.6.10
 
 * reverted changes from v0.6.9
