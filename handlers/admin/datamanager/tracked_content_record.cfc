@@ -3,6 +3,8 @@ component extends="app.extensions.preside-ext-better-view-record-screen.base.Bet
 	property name="trackerService" inject="ContentDependencyTrackerService";
 	property name="configService"  inject="ContentDependencyTrackerConfigurationService";
 
+	variables.permissionBase = "dependencyTracker";
+
 	variables.infoCol1 = [ "object_name", "hidden", "orphaned" ];
 	variables.infoCol2 = [ "record_id", "last_scanned", "requires_scanning" ];
 
