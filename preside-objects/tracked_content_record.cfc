@@ -7,8 +7,7 @@
  * @labelRenderer                tracked_content_record
  */
 component {
-	property name="label" renderer="trackedContentRecordLabelRenderer";
-
+	property name="label"                type="string"  dbtype="varchar" maxlength=500   required=true renderer="trackedContentRecordLabelRenderer";
 	property name="id"                   type="numeric" dbtype="bigint"                  required=true generator="increment";
 	property name="object_name"          type="string"  dbtype="varchar" maxlength=50    required=true renderer="objectName" uniqueIndexes="objectNameAndRecordId|1" enum="dependencyTrackerObjectNames";
 	property name="record_id"            type="string"  dbtype="varchar" maxlength=35    required=true                       uniqueIndexes="objectNameAndRecordId|2";
