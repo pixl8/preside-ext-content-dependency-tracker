@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.0
+
+* re-introduced support for bundled enhanced record view of Preside 10.24.0
+
 ## v0.6.11
 
 * Fix some admin permission checking issues
