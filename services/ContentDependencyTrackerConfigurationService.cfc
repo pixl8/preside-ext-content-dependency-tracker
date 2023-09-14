@@ -52,6 +52,12 @@ component {
 		return _isBooleanSystemSettingEnabled( setting="enabled" );
 	}
 
+	public numeric function getDeltaScanningBatchSize() {
+		var setting = $getPresideSetting( "content-dependency-tracker", "delta_scanning_batch_size" );
+
+		return ( isNumeric( setting ) && setting > 0 ) ? setting : 0;
+	}
+
 	public array function getAllTrackableObjects() {
 		return _simpleLocalCache( "getAllTrackableObjects", function() {
 			var configuredObjects   = getTrackingEnabledObjects();

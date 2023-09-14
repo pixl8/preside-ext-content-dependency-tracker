@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <form i18nBaseUri="system-config.content-dependency-tracker:">
-	<tab id="default">
+	<tab id="basics">
 		<fieldset id="default">
 			<field name="enabled"                         default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
 			<field name="fk_scanning_enabled"             default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
@@ -9,6 +9,11 @@
 			<field name="show_hidden_records"             default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
 			<field name="show_all_orphaned_records"       default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
 			<field name="single_record_scanning"          default="false" control="depTrackRawAdminCheckbox" layout="formcontrols.layouts.field.depTrackAdminCheckboxWithHelp" />
+		</fieldset>
+	</tab>
+	<tab id="advanced">
+		<fieldset id="default">
+			<field name="delta_scanning_batch_size" control="spinner" />
 		</fieldset>
 	</tab>
 </form>

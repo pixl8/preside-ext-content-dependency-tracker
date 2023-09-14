@@ -49,8 +49,19 @@ component {
 
 			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#)..." );
 
-			var contentRecordIdMap = !_isFullProcessing() ? _getScanningRequiredContentRecordMap()       : {};
-			var objectNames        =  _isFullProcessing() ? _getConfiguration().getAllTrackableObjects() : structKeyArray( contentRecordIdMap );
+			var contentRecordIdMap = {};
+			var objectNames        = _getConfiguration().getAllTrackableObjects();
+
+			if ( !_isFullProcessing() ) {
+				var batchSize          = _getConfiguration().getDeltaScanningBatchSize();
+
+				if ( batchSize > 0 ) {
+					logger.info( "Batch size: #batchSize# (this is the maximum number of records processed in this task run)" );
+				}
+
+				contentRecordIdMap = _getBatchedScanningRequiredContentRecordMap( batchSize=batchSize );
+				objectNames        = structKeyArray( contentRecordIdMap );
+			}
 
 			_cacheContentRecordData();
 
@@ -697,10 +708,12 @@ component {
 		return result;
 	}
 
-	private struct function _getScanningRequiredContentRecordMap() {
+	private struct function _getBatchedScanningRequiredContentRecordMap( numeric batchSize=_getConfiguration().getDeltaScanningBatchSize() ) {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { requires_scanning=true }
 			, selectFields = [ "object_name", "record_id" ]
+			, orderby      = "datemodified"
+			, maxRows      = arguments.batchSize
 			, useCache     = false
 		);
 
