@@ -53,9 +53,13 @@ component {
 			var objectNames        = _getConfiguration().getAllTrackableObjects();
 
 			if ( !_isFullProcessing() ) {
-				var batchSize          = _getConfiguration().getDeltaScanningBatchSize();
+				var overallRecordCount = _getScanningRequiredContentRecordCount();
 
-				if ( batchSize > 0 ) {
+				logger.info( "Number of records requiring scanning: #overallRecordCount#" );
+
+				var batchSize = _getConfiguration().getDeltaScanningBatchSize();
+
+				if ( overallRecordCount > 0 && batchSize > 0 && batchSize < overallRecordCount ) {
 					logger.info( "Batch size: #batchSize# (this is the maximum number of records processed in this task run)" );
 				}
 
@@ -727,6 +731,14 @@ component {
 		}
 
 		return result;
+	}
+
+	private numeric function _getScanningRequiredContentRecordCount() {
+		return _getContentRecordDao().selectData(
+			  filter          = { requires_scanning=true }
+			, recordCountOnly = true
+			, useCache        = false
+		);
 	}
 
 	private any function _simpleLocalCache( required string cacheKey, required any generator ) {
