@@ -336,6 +336,8 @@ component {
 				data.label = q.id;
 			}
 
+			data.label = left( data.label, 400 );
+
 			if ( _mappedContentRecordExists( recordId=q.id, objectName=arguments.objectName ) ) {
 				trackedContentRecordId = _mapContentRecordId( recordId=q.id, objectName=arguments.objectName );
 				if ( orphanedMap[ trackedContentRecordId ] || ( recordLabels[ trackedContentRecordId ] != data.label ) ) {
