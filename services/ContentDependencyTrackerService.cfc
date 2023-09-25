@@ -49,12 +49,25 @@ component {
 
 			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#)..." );
 
-			var contentRecordIdMap = !_isFullProcessing() ? _getScanningRequiredContentRecordMap()          : {};
-			var objectNames        =  _isFullProcessing() ? _getConfiguration().getAllTrackableObjects() : structKeyArray( contentRecordIdMap );
+			var contentRecordIdMap = {};
+			var objectNames        = _getConfiguration().getAllTrackableObjects();
 
-			if ( _isFullProcessing() ) {
-				_cacheContentRecordData();
+			if ( !_isFullProcessing() ) {
+				var overallRecordCount = _getScanningRequiredContentRecordCount();
+
+				logger.info( "Number of records requiring scanning: #overallRecordCount#" );
+
+				var batchSize = _getConfiguration().getDeltaScanningBatchSize();
+
+				if ( overallRecordCount > 0 && batchSize > 0 && batchSize < overallRecordCount ) {
+					logger.info( "Batch size: #batchSize# (this is the maximum number of records processed in this task run)" );
+				}
+
+				contentRecordIdMap = _getBatchedScanningRequiredContentRecordMap( batchSize=batchSize );
+				objectNames        = structKeyArray( contentRecordIdMap );
 			}
+
+			_cacheContentRecordData();
 
 			for ( var objectName in objectNames ) {
 				_indexContentRecords(
@@ -93,6 +106,7 @@ component {
 
 			var updated = 0;
 
+			// flag irrelevant records as hidden
 			for ( var objectName in objectNames ) {
 				if ( !_getConfiguration().hideAllIrrelevantContentRecords() && !_getConfiguration().hideIrrelevantRecords( objectName ) ) {
 					continue;
@@ -112,6 +126,7 @@ component {
 				}
 			}
 
+			// remove scan flag from records that have been processed in this run
 			updated = _getContentRecordDao().updateData(
 				  filter          = { requires_scanning=true, last_scan_process_id=_getProcessId() }
 				, data            = { requires_scanning=false }
@@ -300,9 +315,9 @@ component {
 			return;
 		}
 
-		var idField                = $getPresideObjectService().getIdField( objectName );
-		var labelField             = $getPresideObjectService().getLabelField( objectName );
-		var labelFieldColumnExists = $getPresideObjectService().fieldExists( objectName, labelField );
+		var idField                = $getPresideObjectService().getIdField( arguments.objectName );
+		var labelField             = $getPresideObjectService().getLabelField( arguments.objectName );
+		var labelFieldColumnExists = $getPresideObjectService().fieldExists( arguments.objectName, labelField );
 
 		var hasCustomLabelGenerator = _getConfiguration().hasCustomLabelGenerator( arguments.objectName );
 		var customLabelGenerator    = hasCustomLabelGenerator ? _getConfiguration().getCustomLabelGenerator( arguments.objectName ) : "";
@@ -312,53 +327,89 @@ component {
 		var selectFields = [ "#idField# as id", "#labelField# as label" ];
 		var filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
 
-		var records = $getPresideObjectService().selectData( objectName=objectName, filter=filter, selectFields=selectFields, useCache=false );
+		var q = $getPresideObjectService().selectData( objectName=arguments.objectName, filter=filter, selectFields=selectFields, useCache=false );
 
-		logger.info( "Now scanning [#records.recordCount#] [#arguments.objectName#] record(s)..." );
+		var counter                   = { inserted=0, updated=0, unchanged=0 };
+		var data                      = {};
+		var trackedContentRecordId    = 0;
+		var unchangedContentRecordIds = [];
 
-		var updated = 0;
-		var label   = "";
-		var counter = { inserted=0, updated=0 };
+		var labelAndOrphanedMaps = _getRecordLabelAndOrphanedMaps( objectName=arguments.objectName, recordIds=arguments.recordIds );
+		var recordLabels         = labelAndOrphanedMaps.labels;
+		var orphanedMap          = labelAndOrphanedMaps.orphaned;
 
-		for ( var record in records ) {
-			label = trim( record.label );
-			if ( hasCustomLabelGenerator ) {
-				label = $renderContent( renderer=customLabelGenerator, data=record.id );
+		loop query="q" {
+			data = {
+				  label                = hasCustomLabelGenerator ? $renderContent( renderer=customLabelGenerator, data=q.id ) : trim( q.label )
+				, orphaned             = false
+				, requires_scanning    = true
+				, last_scan_process_id = _getProcessId()
+				, last_scanned         = _getProcessTimestamp()
+			};
+
+			if ( isEmpty( data.label ) ) {
+				data.label = q.id;
 			}
-			if ( isEmpty( label ) ) {
-				label = record.id;
+
+			data.label = left( data.label, 400 );
+
+			if ( _mappedContentRecordExists( recordId=q.id, objectName=arguments.objectName ) ) {
+				trackedContentRecordId = _mapContentRecordId( recordId=q.id, objectName=arguments.objectName );
+				if ( orphanedMap[ trackedContentRecordId ] || ( recordLabels[ trackedContentRecordId ] != data.label ) ) {
+					_getContentRecordDao().updateData(
+						  data   = data
+						, filter = { id=trackedContentRecordId }
+					);
+					counter.updated++;
+				}
+				else {
+					arrayAppend( unchangedContentRecordIds, trackedContentRecordId );
+				}
 			}
-			updated = _getContentRecordDao().updateData(
+			else {
+
+				data.object_name = arguments.objectName;
+				data.record_id   = q.id;
+				data.hidden	     = false;
+
+				trackedContentRecordId = _getContentRecordDao().insertData( data=data );
+				_addTrackedContentRecordId( q.id );
+				_addMappedContentRecordId( objectName=arguments.objectName, recordId=q.id, mappedId=trackedContentRecordId );
+				counter.inserted++;
+			}
+		}
+
+		if ( arrayLen( unchangedContentRecordIds ) > 0 ) {
+			counter.unchanged = _getContentRecordDao().updateData(
 				  data   = {
-					  label                = label
-					, orphaned             = false
+					  orphaned             = false
 					, requires_scanning    = true
 					, last_scan_process_id = _getProcessId()
 					, last_scanned         = _getProcessTimestamp()
 				}
-				, filter = { object_name=arguments.objectName, record_id=record.id }
+				, filter = { id=unchangedContentRecordIds }
 			);
-			if ( !updated ) {
-				_getContentRecordDao().insertData(
-					data = {
-						  object_name          = arguments.objectName
-						, record_id            = record.id
-						, label                = label
-						, orphaned             = false
-						, hidden               = false
-						, requires_scanning    = true
-						, last_scan_process_id = _getProcessId()
-						, last_scanned         = _getProcessTimestamp()
-					}
-				);
-				counter.inserted++;
-			}
-			else {
-				counter.updated++;
-			}
 		}
 
-		logger.info( "Scanning of [#arguments.objectName#] record(s) completed (inserted: #counter.inserted#, updated: #counter.updated#)" );
+		logger.info( "Scanning of [#arguments.objectName#] records completed (inserted: #counter.inserted#, updated: #counter.updated#, unchanged:#counter.unchanged#)" );
+	}
+
+	private struct function _getRecordLabelAndOrphanedMaps( required string objectName, required array recordIds ) {
+		var filter = { object_name=arguments.objectName };
+
+		if ( !_isFullProcessing() ) {
+			filter[ "record_id" ] = arguments.recordIds;
+		}
+
+		var q      = _getContentRecordDao().selectData( selectFields=[ "id", "label", "orphaned" ], filter=filter, useCache=false );
+		var result = { labels={}, orphaned={} };
+
+		loop query="q" {
+			result.labels[ q.id ]    = q.label;
+			result.orphaned[ q.id ]  = q.orphaned;
+		}
+
+		return result;
 	}
 
 	private void function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
@@ -367,12 +418,9 @@ component {
 			return;
 		}
 
-		logger.info( "Now detecting [#arguments.objectName#] object dependencies..." );
-
 		var props = _getConfiguration().getTrackingEnabledObjectProperties( arguments.objectName );
 
 		if ( isEmpty( props ) ) {
-			logger.info( "No trackable properties found." );
 			return;
 		}
 
@@ -402,20 +450,21 @@ component {
 
 		arrayAppend( selectFields, idField );
 
-		var filter                  = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
-		var records                 = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );
-		var propName                = "";
-		var propValue               = "";
-		var sourceRecordId          = "";
-		var relatedContentRecordIds = [];
-		var upsertResult			= {};
-		var counter                 = { inserted=0, updated=0, deleted=0 };
+		var filter                   = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
+		var q                        = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );
+		var propName                 = "";
+		var propValue                = "";
+		var sourceRecordId           = "";
+		var relatedContentRecordIds  = [];
+		var processedSourceRecordIds = [];
+		var upsertResult			 = {};
+		var counter                  = { inserted=0, updated=0, deleted=0 };
 
-		for ( var record in records ) {
-			if ( !_isTrackedContentRecordId( record.id ) ) {
+		loop query="q" {
+			if ( !_mappedContentRecordExists( recordId=q.id, objectName=arguments.objectName ) ) {
 				continue;
 			}
-			sourceRecordId = _mapContentRecordId( objectName=arguments.objectName, recordId=record.id );
+			sourceRecordId = _mapContentRecordId( objectName=arguments.objectName, recordId=q.id );
 			if ( sourceRecordId == 0 ) {
 				continue;
 			}
@@ -423,7 +472,7 @@ component {
 				if ( arrayFindNoCase( skipProperties, propName ) ) {
 					continue;
 				}
-				propValue = record[ propName ];
+				propValue = queryGetCell( q, propName, q.currentRow );
 				if ( isEmpty( propValue ) ) {
 					continue;
 				}
@@ -448,13 +497,25 @@ component {
 				counter.updated  += upsertResult.updated;
 				counter.inserted += upsertResult.inserted;
 			}
-			counter.deleted  += _getDependencyDao().deleteData(
-				  filter       = "content_record = :content_record and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
-				, filterParams = { content_record=sourceRecordId, last_scan_process_id=_getProcessId() }
-			);
+			arrayAppend( processedSourceRecordIds, sourceRecordId );
+			if ( arrayLen( processedSourceRecordIds ) > 100 ) {
+				counter.deleted += _deleteOrphanedDependencies( processedSourceRecordIds );
+				arrayClear( processedSourceRecordIds );
+			}
+		}
+
+		if ( arrayLen( processedSourceRecordIds ) > 0 ) {
+			counter.deleted += _deleteOrphanedDependencies( processedSourceRecordIds );
 		}
 
 		logger.info( "Processing of [#arguments.objectName#] content record dependencies completed (inserted: #counter.inserted#, updated: #counter.updated#, deleted: #counter.deleted#)" );
+	}
+
+	private numeric function _deleteOrphanedDependencies( required array sourceRecordIds ) {
+		return _getDependencyDao().deleteData(
+			  filter       = "content_record in (:content_record) and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
+			, filterParams = { content_record=arguments.sourceRecordIds, last_scan_process_id=_getProcessId() }
+		);
 	}
 
 	private struct function _syncDependencies(
@@ -464,42 +525,72 @@ component {
 		, required string fieldName
 	) {
 
-		var result          = { inserted=0, updated=0, deleted=0 };
-		var targetRecordIds = _mapContentRecordIds( recordIds=arguments.targetRecordIds, objectName=arguments.objectName );
+		var result                    = { inserted=0, updated=0 };
+		var mappedTargetRecordIds     = _mapContentRecordIds( recordIds=arguments.targetRecordIds, objectName=arguments.objectName );
+		var mappedTargetRecordIdCount = arrayLen( mappedTargetRecordIds );
 
-		if ( isEmpty( targetRecordIds ) ) {
+		if ( mappedTargetRecordIdCount == 0 ) {
 			return result;
 		}
 
-		var updated         = 0;
 		var isSoftReference = isEmpty( arguments.objectName ); // soft references have no object name, only hard references do (FKs) - for soft references we just know the UUID
 
-		for ( var targetRecordId in targetRecordIds ) {
-			updated = _getDependencyDao().updateData(
-				  data   = {
-					last_scan_process_id = _getProcessId()
-				}
-				, filter = {
-					  content_record           = arguments.sourceRecordId
-					, dependent_content_record = targetRecordId
-					, content_record_field     = arguments.fieldName
+		result.updated = _getDependencyDao().updateData(
+			  data   = {
+				last_scan_process_id = _getProcessId()
+			}
+			, filter = {
+				  content_record           = arguments.sourceRecordId
+				, content_record_field     = arguments.fieldName
+				, dependent_content_record = mappedTargetRecordIds
+			}
+		);
+
+		if ( mappedTargetRecordIdCount > result.updated ) {
+			_executePlainQuery( sql="
+				INSERT INTO pobj_tracked_content_record_dependency (
+					  content_record
+					, dependent_content_record
+					, content_record_field
+					, is_soft_reference
+					, last_scan_process_id
+					, datecreated
+					, datemodified
+				)
+				SELECT
+					  :sourceRecordId
+					, tcr.id
+					, :fieldName
+					, :isSoftReference
+					, :processId
+					, :datecreated
+					, :datecreated
+				FROM
+					pobj_tracked_content_record tcr
+				WHERE
+					tcr.id IN (:targetRecordIds)
+					AND NOT EXISTS (
+						SELECT
+							1
+						FROM
+							pobj_tracked_content_record_dependency
+						WHERE
+							dependent_content_record = tcr.id
+							AND content_record       = :sourceRecordId
+							AND content_record_field = :fieldName
+					)
+				"
+				, params = {
+					  sourceRecordId  = { value=arguments.sourceRecordId, cfsqltype="cf_sql_bigint"            }
+					, fieldName       = { value=arguments.fieldName     , cfsqltype="cf_sql_varchar"           }
+					, targetRecordIds = { value=mappedTargetRecordIds   , cfsqltype="cf_sql_bigint", list=true }
+					, isSoftReference = { value=isSoftReference         , cfsqltype="cf_sql_bit"               }
+					, processId       = { value=_getProcessId()         , cfsqltype="cf_sql_varchar"           }
+					, datecreated     = { value=now()                   , cfsqltype="cf_sql_date"              }
 				}
 			);
-			if ( !updated ) {
-				_getDependencyDao().insertData(
-					data = {
-						  content_record           = arguments.sourceRecordId
-						, dependent_content_record = targetRecordId
-						, content_record_field     = arguments.fieldName
-						, is_soft_reference        = isSoftReference
-						, last_scan_process_id     = _getProcessId()
-					}
-				);
-				result.inserted++;
-			}
-			else {
-				result.updated++;
-			}
+
+			result.inserted = arrayLen( mappedTargetRecordIds ) - result.updated;
 		}
 
 		return result;
@@ -519,6 +610,15 @@ component {
 		} );
 	}
 
+	private boolean function _isTrackedContentRecordId( required any recordId ) {
+		return _getTrackedContentRecordIds().contains( arguments.recordId );
+	}
+
+	private void function _addTrackedContentRecordId( required string recordId ) {
+		var trackedContentRecordIds = _getTrackedContentRecordIds();
+		trackedContentRecordIds.add( arguments.recordId );
+	}
+
 	private struct function _getMappedContentRecordIds() {
 		return _simpleLocalCache( "getMappedContentRecordIds", function() {
 
@@ -533,24 +633,33 @@ component {
 		} );
 	}
 
+	private void function _addMappedContentRecordId( required string objectName, required string recordId, required numeric mappedId ) {
+		var mappedContentRecordIds = _getMappedContentRecordIds();
+		mappedContentRecordIds[ arguments.objectName & "_" & arguments.recordId ] = arguments.mappedId;
+	}
+
 	private numeric function _mapContentRecordId( required string objectName, required string recordId ) {
-
-		if ( _isFullProcessing() ) {
-			var mappings = _getMappedContentRecordIds();
-			return mappings[ arguments.objectName & "_" & arguments.recordId ] ?: 0;
-		}
-
-		return getContentRecordId( arguments.objectName, arguments.recordId );
+		var mappings = _getMappedContentRecordIds();
+		return mappings[ arguments.objectName & "_" & arguments.recordId ] ?: 0;
 	}
 
 	private array function _mapContentRecordIds( required array recordIds, string objectName="" ) {
-		var mappedId = 0;
-		var result   = [];
-		var type     = "";
+
+		var result = [];
+
+		if ( len( arguments.objectName ) ) {
+			for ( var recordId in arguments.recordIds ) {
+				if ( _mappedContentRecordExists( recordId=recordId, objectName=arguments.objectName ) ) {
+					arrayAppend( result, _mapContentRecordId( objectName=arguments.objectName, recordId=recordId ) );
+				}
+			}
+			return result;
+		}
 
 		// either a content type is supplied or it's unknown and therefore we need to consider all content types
-		var objectNames = len( arguments.objectName ) ? [ arguments.objectName ] : _getConfiguration().getAllTrackableObjects();
-
+		var objectNames = _getConfiguration().getAllTrackableObjects();
+		var type        = "";
+		
 		for ( var recordId in arguments.recordIds ) {
 			
 			if ( !_isTrackedContentRecordId( recordId ) ) {
@@ -558,9 +667,8 @@ component {
 			}
 
 			for ( type in objectNames ) {
-				mappedId = _mapContentRecordId( objectName=type, recordId=recordId );
-				if ( mappedId > 0 ) {
-					arrayAppend( result, mappedId );
+				if ( _mappedContentRecordExists( recordId=recordId, objectName=type ) ) {
+					arrayAppend( result, _mapContentRecordId( objectName=type, recordId=recordId ) );
 				}
 			}
 		}
@@ -568,11 +676,8 @@ component {
 		return result;
 	}
 
-	private boolean function _isTrackedContentRecordId( required any recordId ) {
-		if ( _isFullProcessing() ) {
-			return _getTrackedContentRecordIds().contains( arguments.recordId );
-		}
-		return _getContentRecordDao().dataExists( filter={ record_id=arguments.recordId } );
+	private boolean function _mappedContentRecordExists( required string objectName, required string recordId ) {
+		return structKeyExists( _getMappedContentRecordIds(), arguments.objectName & "_" & arguments.recordId );
 	}
 
 	private void function _cacheContentRecordData() {
@@ -607,10 +712,12 @@ component {
 		return result;
 	}
 
-	private struct function _getScanningRequiredContentRecordMap() {
+	private struct function _getBatchedScanningRequiredContentRecordMap( numeric batchSize=_getConfiguration().getDeltaScanningBatchSize() ) {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { requires_scanning=true }
 			, selectFields = [ "object_name", "record_id" ]
+			, orderby      = "datemodified"
+			, maxRows      = arguments.batchSize
 			, useCache     = false
 		);
 
@@ -626,6 +733,14 @@ component {
 		return result;
 	}
 
+	private numeric function _getScanningRequiredContentRecordCount() {
+		return _getContentRecordDao().selectData(
+			  filter          = { requires_scanning=true }
+			, recordCountOnly = true
+			, useCache        = false
+		);
+	}
+
 	private any function _simpleLocalCache( required string cacheKey, required any generator ) {
 		var cache = _getLocalCache();
 
@@ -638,6 +753,22 @@ component {
 
 	private boolean function _isFullProcessing() {
 		return _getFullProcessing();
+	}
+
+	private any function _executePlainQuery( required string sql, struct params={} ) {
+
+		var q = new Query();
+
+		q.setDatasource( "preside" );
+
+		for ( var fieldName in arguments.params ) {
+			arguments.params[ fieldName ].name = fieldName;
+			q.addParam( argumentCollection=arguments.params[ fieldName ] );
+		}
+
+		q.setSQL( arguments.sql );
+
+		return q.execute().getResult();
 	}
 
 // GETTERS AND SETTERS

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0
+
+* Re-introduced support for bundled enhanced record view of Preside 10.24.0
+* Fixed label length issue for content records (field increase and limit input)
+* Various scan performance improvements
+
 ## v0.6.11
 
 * Fix some admin permission checking issues
