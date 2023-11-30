@@ -43,6 +43,10 @@ component {
 		var objectName = interceptData.objectName ?: "";
 		var idField    = presideObjectService.getIdField( objectName=objectName );
 
+		if ( !Len( idField ) ) {
+			return;
+		}
+
 		try {
 			var records = presideObjectService.selectData( argumentCollection=arguments.interceptData, selectFields=[ idField ] );
 
