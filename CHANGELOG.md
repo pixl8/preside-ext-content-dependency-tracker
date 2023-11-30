@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+
+* Fix issue with preDeleteObjectData interceptor that errors for objects with no id field
+
 ## v0.7.0
 
 * Re-introduced support for bundled enhanced record view of Preside 10.24.0
