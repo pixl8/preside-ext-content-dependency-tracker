@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.2
+
+* Fix further issues with objects without id fields causing erors
+
 ## v0.7.1
 
 * Fix issue with preDeleteObjectData interceptor that errors for objects with no id field
