@@ -310,12 +310,12 @@ component {
 
 // PRIVATE FUNCTIONS
 	private void function _indexContentRecords( required string objectName, required array recordIds, any logger ) {
+		var idField = $getPresideObjectService().getIdField( arguments.objectName );
 
-		if ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) {
+		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
 			return;
 		}
 
-		var idField                = $getPresideObjectService().getIdField( arguments.objectName );
 		var labelField             = $getPresideObjectService().getLabelField( arguments.objectName );
 		var labelFieldColumnExists = $getPresideObjectService().fieldExists( arguments.objectName, labelField );
 
