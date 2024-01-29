@@ -414,7 +414,9 @@ component {
 
 	private void function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
 
-		if ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) {
+		var idField = $getPresideObjectService().getIdField( arguments.objectName );
+
+		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
 			return;
 		}
 
@@ -427,7 +429,7 @@ component {
 		var isForeignKeyScanningEnabled    = _getConfiguration().isForeignKeyScanningEnabled();
 		var isSoftReferenceScanningEnabled = _getConfiguration().isSoftReferenceScanningEnabled();
 
-		var selectFields   = [];
+		var selectFields   = [ idField ];
 		var skipProperties = []; // not enabled for tracking
 
 		for ( var propName in props ) {
@@ -445,10 +447,6 @@ component {
 				arrayAppend( selectFields, propName );
 			}
 		}
-
-		var idField = $getPresideObjectService().getIdField( objectName );
-
-		arrayAppend( selectFields, idField );
 
 		var filter                   = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
 		var q                        = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.3
+
+* Fix further issues with objects without id fields causing errors (do not autotrack, skip in dependency evaluation)
+
 ## v0.7.2
 
 * Fix further issues with objects without id fields causing erors

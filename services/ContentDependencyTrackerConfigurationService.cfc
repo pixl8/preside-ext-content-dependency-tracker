@@ -111,6 +111,13 @@ component {
 					continue;
 				}
 
+				var idField = $getPresideObjectService().getIdField( objectName );
+
+				if ( !Len( idField ) ) {
+					// we do not need to add this because it does not have an ID field, therefore cannot be easily identified
+					continue;
+				}
+
 				// find FKs that relate to a tracking enabled object and/or if soft references are enabled and all db text field scanning is enabled, then it's also a match
 				var props              = $getPresideObjectService().getObjectProperties( objectName );
 				var relevantFieldFound = false;
