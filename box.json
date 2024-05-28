@@ -17,5 +17,8 @@
         ".gitignore",
         ".github/*",
         ".twgit_features_subject"
-    ]
+    ],
+    "preside": {
+        "minVersion": "10.24.0"
+    }
 }
