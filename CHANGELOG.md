@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.4
+
+* added Preside 10.24.0 as min-version to box.json
+
 ## v0.7.3
 
 * Fix further issues with objects without id fields causing errors (do not autotrack, skip in dependency evaluation)
