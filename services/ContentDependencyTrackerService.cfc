@@ -69,16 +69,33 @@ component {
 
 			_cacheContentRecordData();
 
+			var totalContentRecordChangeCounts = { inserted=0, updated=0, unchanged=0 };
+			var counter                        = {};
+			var needsCountFieldUpdates         = _isFullProcessing();
+
 			for ( var objectName in objectNames ) {
-				_indexContentRecords(
+				counter = _indexContentRecords(
 					  objectName = objectName
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+
+				totalContentRecordChangeCounts.inserted  += counter.inserted;
+				totalContentRecordChangeCounts.updated   += counter.updated;
+				totalContentRecordChangeCounts.unchanged += counter.unchanged;
+
 				if ( $isInterrupted() ) {
 					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
 					return false;
 				}
+			}
+
+			if ( ( totalContentRecordChangeCounts.inserted + totalContentRecordChangeCounts.updated + totalContentRecordChangeCounts.unchanged ) > 0 ) {
+				logger.info( "Scanning of ALL content records completed (inserted: #totalContentRecordChangeCounts.inserted#, updated: #totalContentRecordChangeCounts.updated#, unchanged: #totalContentRecordChangeCounts.unchanged#)" );
+			}
+
+			if ( ( totalContentRecordChangeCounts.inserted + totalContentRecordChangeCounts.updated ) > 0 ) {
+				needsCountFieldUpdates = true;
 			}
 
 			if ( _isFullProcessing() ) {
@@ -92,16 +109,28 @@ component {
 				}
 			}
 
+			var totalDependencyChangeCounts = { inserted=0, updated=0, deleted=0 };
+
 			for ( var objectName in objectNames ) {
-				_indexContentRecordDependencies(
+				counter = _indexContentRecordDependencies(
 					  objectName = objectName
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+
+				totalDependencyChangeCounts.inserted += counter.inserted;
+				totalDependencyChangeCounts.updated  += counter.updated;
+				totalDependencyChangeCounts.deleted  += counter.deleted;
+
 				if ( $isInterrupted() ) {
 					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
 					return false;
 				}
+			}
+
+			if ( ( totalDependencyChangeCounts.inserted + totalDependencyChangeCounts.updated + totalDependencyChangeCounts.deleted ) > 0 ) {
+				logger.info( "Processing of ALL content record dependencies completed (inserted: #totalDependencyChangeCounts.inserted#, updated: #totalDependencyChangeCounts.updated#, deleted: #totalDependencyChangeCounts.deleted#)" );
+				needsCountFieldUpdates = true;
 			}
 
 			var updated = 0;
@@ -118,6 +147,7 @@ component {
 					, setDateModified = false
 				);
 				if ( updated > 0 ) {
+					needsCountFieldUpdates = true;
 					logger.info( "hiding [#updated#] [#objectName#] record(s) without dependencies" );
 				}
 				if ( $isInterrupted() ) {
@@ -133,6 +163,7 @@ component {
 				, setDateModified = false
 			);
 			if ( updated > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Marked [#updated#] scanned content record(s) to not require scanning anymore (processed within this run)." );
 			}
 
@@ -143,6 +174,7 @@ component {
 				, setDateModified = false
 			);
 			if ( updated > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Marked [#updated#] orphaned content record(s) to not require scanning anymore." );
 			}
 
@@ -151,12 +183,15 @@ component {
 				, filterParams = { "tracked_content_record.orphaned"=true, "tracked_content_record.last_scan_process_id"=_getProcessId() }
 			);
 			if ( deleted > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Removed [#deleted#] dependencies of orphaned content records." );
 			}
 
 			_clearCachedContentRecordData();
 
-			cacheContentRecordDependencyCounts( logger=logger );
+			if ( needsCountFieldUpdates ) {
+				cacheContentRecordDependencyCounts( logger=logger );
+			}
 
 			logger.info( "Done." );
 
@@ -380,11 +415,13 @@ component {
 	}
 
 // PRIVATE FUNCTIONS
-	private void function _indexContentRecords( required string objectName, required array recordIds, any logger ) {
+	private struct function _indexContentRecords( required string objectName, required array recordIds, any logger ) {
+
+		var counter = { inserted=0, updated=0, unchanged=0 };
 		var idField = $getPresideObjectService().getIdField( arguments.objectName );
 
 		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
-			return;
+			return counter;
 		}
 
 		var labelField             = $getPresideObjectService().getLabelField( arguments.objectName );
@@ -400,7 +437,6 @@ component {
 
 		var q = $getPresideObjectService().selectData( objectName=arguments.objectName, filter=filter, selectFields=selectFields, useCache=false );
 
-		var counter                   = { inserted=0, updated=0, unchanged=0 };
 		var data                      = {};
 		var trackedContentRecordId    = 0;
 		var unchangedContentRecordIds = [];
@@ -462,7 +498,9 @@ component {
 			);
 		}
 
-		logger.info( "Scanning of [#arguments.objectName#] records completed (inserted: #counter.inserted#, updated: #counter.updated#, unchanged:#counter.unchanged#)" );
+		logger.info( "Scanning of [#arguments.objectName#] records completed (inserted: #counter.inserted#, updated: #counter.updated#, unchanged: #counter.unchanged#)" );
+
+		return counter;
 	}
 
 	private struct function _getRecordLabelAndOrphanedMaps( required string objectName, required array recordIds ) {
@@ -483,18 +521,20 @@ component {
 		return result;
 	}
 
-	private void function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
+	private struct function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
+
+		var counter = { inserted=0, updated=0, deleted=0 };
 
 		var idField = $getPresideObjectService().getIdField( arguments.objectName );
 
 		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
-			return;
+			return counter;
 		}
 
 		var props = _getConfiguration().getTrackingEnabledObjectProperties( arguments.objectName );
 
 		if ( isEmpty( props ) ) {
-			return;
+			return counter;
 		}
 
 		var isForeignKeyScanningEnabled    = _getConfiguration().isForeignKeyScanningEnabled();
@@ -578,6 +618,8 @@ component {
 		}
 
 		logger.info( "Processing of [#arguments.objectName#] content record dependencies completed (inserted: #counter.inserted#, updated: #counter.updated#, deleted: #counter.deleted#)" );
+
+		return counter;
 	}
 
 	private numeric function _deleteOrphanedDependencies( required array sourceRecordIds ) {
