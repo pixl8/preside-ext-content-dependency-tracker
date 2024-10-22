@@ -156,10 +156,81 @@ component {
 
 			_clearCachedContentRecordData();
 
+			cacheContentRecordDependencyCounts( logger=logger );
+
 			logger.info( "Done." );
 
 			return true;
 		}
+	}
+
+	public boolean function cacheContentRecordDependencyCounts( any logger ) {
+
+		logger.info( "Now caching content record dependency counts..." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			SET
+				tcr.depends_on_count = 0
+			WHERE
+				NOT EXISTS (
+					SELECT 1 FROM pobj_tracked_content_record_dependency WHERE content_record = tcr.id
+				);
+		" );
+		logger.info( "Count caching: 'Uses' counts set to 0 where no related dependencies found." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			SET
+				tcr.dependent_by_count = 0
+			WHERE
+				NOT EXISTS (
+					SELECT 1 FROM pobj_tracked_content_record_dependency WHERE dependent_content_record = tcr.id
+				);
+		" );
+		logger.info( "Count caching: 'Used by' counts set to 0 where no related dependencies found." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			INNER JOIN
+				(
+					SELECT
+						  content_record
+						, count(id) AS depdendsOnCount
+					FROM
+						pobj_tracked_content_record_dependency
+					GROUP BY
+						content_record
+				) tcrd ON tcrd.content_record = tcr.id
+			SET
+				tcr.depends_on_count = tcrd.depdendsOnCount;
+		" );
+		logger.info( "Count caching: 'Uses' counts stored for records with related dependencies." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			INNER JOIN
+				(
+					SELECT
+						  dependent_content_record
+						, count(id) AS dependentByCount
+					FROM
+						pobj_tracked_content_record_dependency
+					GROUP BY
+						dependent_content_record
+				) tcrd ON tcrd.dependent_content_record = tcr.id
+			SET
+				tcr.dependent_by_count = tcrd.dependentByCount;
+		" );
+		logger.info( "Count caching: 'Used by' counts stored for records with related dependencies." );
+
+		logger.info( "Caching of content record dependency counts completed." );
+
+		return true;
 	}
 
 	public void function removeOrphanedContentRecords( any logger ) {

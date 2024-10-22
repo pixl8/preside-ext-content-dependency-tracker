@@ -3,6 +3,7 @@
  * @dataManagerEnabled           true
  * @nolabel                      true
  * @datamanagerAllowedOperations read
+ * @useCache                     false
  */
 component {
 	property name="id" type="numeric" dbtype="bigint" required=true generator="increment";
