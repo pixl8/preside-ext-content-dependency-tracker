@@ -5,6 +5,7 @@
  * @datamanagerHiddenGridFields  record_id,orphaned
  * @datamanagerAllowedOperations navigate,read
  * @labelRenderer                tracked_content_record
+ * @useCache                     false
  */
 component {
 	property name="label"                type="string"  dbtype="varchar" maxlength=500   required=true renderer="trackedContentRecordLabelRenderer";
@@ -20,6 +21,6 @@ component {
 	property name="depends_on"   relationship="one-to-many" relatedTo="tracked_content_record_dependency" relationshipKey="content_record";
 	property name="dependent_by" relationship="one-to-many" relatedTo="tracked_content_record_dependency" relationshipKey="dependent_content_record";
 
-	property name="depends_on_count"   formula="count( distinct ${prefix}depends_on.id )"   type="numeric" adminRenderer="none";
-	property name="dependent_by_count" formula="count( distinct ${prefix}dependent_by.id )" type="numeric" adminRenderer="none";
+	property name="depends_on_count"   type="numeric" dbtype="int" required=false default="0";
+	property name="dependent_by_count" type="numeric" dbtype="int" required=false default="0";
 }
