@@ -46,8 +46,9 @@ component {
 			_setFullProcessing( arguments.full );
 			_setProcessId( createUUID() );
 			_setProcessTimestamp( now() );
+			_storeSoftRecordCacheEnabled( arguments.full );
 
-			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#)..." );
+			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#, Soft Record Cache enabled: #_softCachingOnly()#)..." );
 
 			var contentRecordIdMap = {};
 			var objectNames        = _getConfiguration().getAllTrackableObjects();
@@ -291,7 +292,6 @@ component {
 			  filter          = "orphaned = :orphaned and exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams    = { orphaned=true }
 			, recordCountOnly = true
-			, useCache        = false
 		);
 		if ( broken > 0 ) {
 			logger.info( "Found [#broken#] orphaned content record(s) that other content records depend on (Broken dependencies). Those have not been deleted." );
@@ -323,7 +323,6 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id" ]
-			, useCache     = false
 		);
 
 		for ( var record in records ) {
@@ -337,7 +336,6 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id", "label", "depends_on_count", "dependent_by_count" ]
-			, useCache     = false
 		);
 
 		for ( var record in records ) {
@@ -510,7 +508,7 @@ component {
 			filter[ "record_id" ] = arguments.recordIds;
 		}
 
-		var q      = _getContentRecordDao().selectData( selectFields=[ "id", "label", "orphaned" ], filter=filter, useCache=false );
+		var q      = _getContentRecordDao().selectData( selectFields=[ "id", "label", "orphaned" ], filter=filter );
 		var result = { labels={}, orphaned={} };
 
 		loop query="q" {
@@ -710,11 +708,14 @@ component {
 	private any function _getTrackedContentRecordIds() {
 		return _simpleLocalCache( "getTrackedContentRecordIds", function() {
 
-			var records  = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true, useCache=false );
 			var result = createObject( "java", "java.util.HashSet" ).init();
 
-			if ( records.recordCount ) {
-				result.addAll( queryColumnData( records, "record_id" ) );
+			if ( _cacheAllRecords() ) {
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true );
+
+				if ( records.recordCount ) {
+					result.addAll( queryColumnData( records, "record_id" ) );
+				}
 			}
 
 			return result;
@@ -722,7 +723,21 @@ component {
 	}
 
 	private boolean function _isTrackedContentRecordId( required any recordId ) {
-		return _getTrackedContentRecordIds().contains( arguments.recordId );
+
+		var foundInCache = _getTrackedContentRecordIds().contains( arguments.recordId );
+
+		if ( _cacheAllRecords() || foundInCache ) {
+			return foundInCache;
+		}
+
+		// soft caching only and not found - check the DB
+		var foundInDb = _getContentRecordDao().dataExists( filter={ record_id=arguments.recordId } );
+
+		if ( foundInDb ) {
+			_addTrackedContentRecordId( arguments.recordId );
+		}
+
+		return foundInDb;
 	}
 
 	private void function _addTrackedContentRecordId( required string recordId ) {
@@ -733,11 +748,14 @@ component {
 	private struct function _getMappedContentRecordIds() {
 		return _simpleLocalCache( "getMappedContentRecordIds", function() {
 
-			var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ], useCache=false );
 			var result  = {};
 
-			loop query="records" {
-				result[ "#records.object_name#_#records.record_id#" ] = records.id;
+			if ( _cacheAllRecords() ) {
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ] );
+
+				loop query="records" {
+					result[ "#records.object_name#_#records.record_id#" ] = records.id;
+				}
 			}
 
 			return result;
@@ -750,6 +768,7 @@ component {
 	}
 
 	private numeric function _mapContentRecordId( required string objectName, required string recordId ) {
+		// assumes that _mappedContentRecordExists() has been called before
 		var mappings = _getMappedContentRecordIds();
 		return mappings[ arguments.objectName & "_" & arguments.recordId ] ?: 0;
 	}
@@ -788,18 +807,50 @@ component {
 	}
 
 	private boolean function _mappedContentRecordExists( required string objectName, required string recordId ) {
-		return structKeyExists( _getMappedContentRecordIds(), arguments.objectName & "_" & arguments.recordId );
+
+		var foundInCache = structKeyExists( _getMappedContentRecordIds(), arguments.objectName & "_" & arguments.recordId );
+
+		if ( _cacheAllRecords() || foundInCache ) {
+			return foundInCache;
+		}
+
+		// soft caching only and not found in cache - check the DB additionally
+		var record = _getContentRecordDao().selectData(
+			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
+			, selectFields = [ "id" ]
+		);
+
+		if ( record.recordCount ) {
+			_addMappedContentRecordId( objectName=arguments.objectName, recordId=arguments.recordId, mappedId=record.id );
+			return true;
+		}
+
+		return false;
 	}
 
 	private void function _cacheContentRecordData() {
 		_clearCachedContentRecordData();
-		_getTrackedContentRecordIds();
-		_getMappedContentRecordIds();
+		if ( _cacheAllRecords() ) {
+			_getTrackedContentRecordIds();
+			_getMappedContentRecordIds();
+		}
 	}
 
 	private void function _clearCachedContentRecordData() {
 		structDelete( _getLocalCache(), "getTrackedContentRecordIds" );
 		structDelete( _getLocalCache(), "getMappedContentRecordIds" );
+	}
+
+	private boolean function _softCachingOnly() {
+		return _softRecordCacheEnabled ?: false;
+	}
+
+	private boolean function _cacheAllRecords() {
+		return !_softCachingOnly();
+	}
+
+	private void function _storeSoftRecordCacheEnabled( required boolean full ) {
+		_softRecordCacheEnabled = arguments.full ? _getConfiguration().isSoftRecordCacheInFullScanEnabled() : _getConfiguration().isSoftRecordCacheInDeltaScanEnabled();
 	}
 
 	private array function _findUuids( required string content ) {
@@ -829,7 +880,6 @@ component {
 			, selectFields = [ "object_name", "record_id" ]
 			, orderby      = "datemodified"
 			, maxRows      = arguments.batchSize
-			, useCache     = false
 		);
 
 		var result = {};
@@ -848,7 +898,6 @@ component {
 		return _getContentRecordDao().selectData(
 			  filter          = { requires_scanning=true }
 			, recordCountOnly = true
-			, useCache        = false
 		);
 	}
 

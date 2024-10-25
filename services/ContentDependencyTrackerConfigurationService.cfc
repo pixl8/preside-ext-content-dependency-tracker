@@ -249,6 +249,14 @@ component {
 		return _isBooleanSystemSettingEnabled( setting="hide_all_irrelevant_records" );
 	}
 
+	public boolean function isSoftRecordCacheInFullScanEnabled() {
+		return _isBooleanSystemSettingEnabled( setting="enable_soft_record_cache_full" );
+	}
+
+	public boolean function isSoftRecordCacheInDeltaScanEnabled() {
+		return _isBooleanSystemSettingEnabled( setting="enable_soft_record_cache_delta" );
+	}
+
 	public struct function getLinkToTrackerEventConfig() {
 		var settings = _getSettings();
 		return settings.linkToTrackerEvents ?: {};
