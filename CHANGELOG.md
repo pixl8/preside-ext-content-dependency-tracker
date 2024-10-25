@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.0
+
+* sys setting to enable/disable record caching during full and delta scanning (try different settings for performance benefits)
+* dependency counts now real fields and not formulas anymore (improves performance when dealing with lots of tracked content objects)
+
 ## v0.7.4
 
 * added Preside 10.24.0 as min-version to box.json
