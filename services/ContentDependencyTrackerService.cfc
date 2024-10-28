@@ -159,7 +159,7 @@ component {
 
 			// remove scan flag from records that have been processed in this run
 			updated = _getContentRecordDao().updateData(
-				  filter          = { requires_scanning=true, last_scan_process_id=_getProcessId() }
+				  filter          = { last_scan_process_id=_getProcessId() }
 				, data            = { requires_scanning=false }
 				, setDateModified = false
 			);
@@ -170,7 +170,7 @@ component {
 
 			// deal with orphaned content records
 			updated = _getContentRecordDao().updateData(
-				  filter          = { requires_scanning=true, orphaned=true }
+				  filter          = { orphaned=true, requires_scanning=true }
 				, data            = { requires_scanning=false, last_scan_process_id=_getProcessId(), last_scanned=_getProcessTimestamp() }
 				, setDateModified = false
 			);
