@@ -104,6 +104,7 @@ component {
 					  data         = { orphaned=true }
 					, filter       = "orphaned = :orphaned and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
 					, filterParams = { orphaned=false, last_scan_process_id=_getProcessId() }
+					, timeout      = _getQueryTimeout()
 				);
 				if ( orphaned > 0 ) {
 					logger.info( "marked [#orphaned#] non-orphaned content record(s) as orphaned because not found during processing." );
@@ -146,6 +147,7 @@ component {
 					, filterParams    = { object_name=objectName, last_scan_process_id=_getProcessId(), hidden=false }
 					, data            = { hidden=true }
 					, setDateModified = false
+					, timeout         = _getQueryTimeout()
 				);
 				if ( updated > 0 ) {
 					needsCountFieldUpdates = true;
@@ -162,6 +164,7 @@ component {
 				  filter          = { last_scan_process_id=_getProcessId() }
 				, data            = { requires_scanning=false }
 				, setDateModified = false
+				, timeout         = _getQueryTimeout()
 			);
 			if ( updated > 0 ) {
 				needsCountFieldUpdates = true;
@@ -173,6 +176,7 @@ component {
 				  filter          = { orphaned=true, requires_scanning=true }
 				, data            = { requires_scanning=false, last_scan_process_id=_getProcessId(), last_scanned=_getProcessTimestamp() }
 				, setDateModified = false
+				, timeout         = _getQueryTimeout()
 			);
 			if ( updated > 0 ) {
 				needsCountFieldUpdates = true;
@@ -182,6 +186,7 @@ component {
 			deleted = _getDependencyDao().deleteData(
 				  filter       = "content_record in (select id from pobj_tracked_content_record where orphaned = :tracked_content_record.orphaned and last_scan_process_id = :tracked_content_record.last_scan_process_id)"
 				, filterParams = { "tracked_content_record.orphaned"=true, "tracked_content_record.last_scan_process_id"=_getProcessId() }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
 				needsCountFieldUpdates = true;
@@ -275,11 +280,13 @@ component {
 		_getDependencyDao().deleteData(
 			  filter       = "content_record in (select id from pobj_tracked_content_record where orphaned = :tracked_content_record.orphaned)"
 			, filterParams = { "tracked_content_record.orphaned"=true }
+			, timeout      = _getQueryTimeout()
 		);
 
 		var deleted = _getContentRecordDao().deleteData(
 			  filter       = "orphaned = :orphaned and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams = { orphaned=true }
+			, timeout      = _getQueryTimeout()
 		);
 		if ( deleted > 0 ) {
 			logger.info( "Removed [#deleted#] orphaned content record(s) that have no dependencies anymore" );
@@ -292,6 +299,7 @@ component {
 			  filter          = "orphaned = :orphaned and exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams    = { orphaned=true }
 			, recordCountOnly = true
+			, timeout         = _getQueryTimeout()
 		);
 		if ( broken > 0 ) {
 			logger.info( "Found [#broken#] orphaned content record(s) that other content records depend on (Broken dependencies). Those have not been deleted." );
@@ -303,6 +311,7 @@ component {
 			deleted = _getDependencyDao().deleteData(
 				  filter       = "content_record.object_name not in (:validObjectNames) or dependent_content_record.object_name not in (:validObjectNames)"
 				, filterParams = { validObjectNames={ value=validObjectNames, type="cf_sql_varchar", list=true } }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
 				logger.info( "Removed [#deleted#] dependency record(s) which belong(s) to content records that are not tracked (anymore)" );
@@ -310,6 +319,7 @@ component {
 			deleted = _getContentRecordDao().deleteData(
 				  filter       = "object_name not in (:validObjectNames)"
 				, filterParams = { validObjectNames={ value=validObjectNames, type="cf_sql_varchar", list=true } }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
 				logger.info( "Removed [#deleted#] content record(s) that is/are not tracked (anymore)" );
@@ -323,6 +333,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id" ]
+			, timeout      = _getQueryTimeout()
 		);
 
 		for ( var record in records ) {
@@ -336,6 +347,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id", "label", "depends_on_count", "dependent_by_count" ]
+			, timeout      = _getQueryTimeout()
 		);
 
 		for ( var record in records ) {
@@ -433,7 +445,13 @@ component {
 		var selectFields = [ "#idField# as id", "#labelField# as label" ];
 		var filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
 
-		var q = $getPresideObjectService().selectData( objectName=arguments.objectName, filter=filter, selectFields=selectFields, useCache=false );
+		var q = $getPresideObjectService().selectData(
+			  objectName   = arguments.objectName
+			, filter       = filter
+			, selectFields = selectFields
+			, useCache     = false
+			, timeout      = _getQueryTimeout()
+		);
 
 		var data                      = {};
 		var trackedContentRecordId    = 0;
@@ -462,8 +480,9 @@ component {
 				trackedContentRecordId = _mapContentRecordId( recordId=q.id, objectName=arguments.objectName );
 				if ( orphanedMap[ trackedContentRecordId ] || ( recordLabels[ trackedContentRecordId ] != data.label ) ) {
 					_getContentRecordDao().updateData(
-						  data   = data
-						, filter = { id=trackedContentRecordId }
+						  data    = data
+						, filter  = { id=trackedContentRecordId }
+						, timeout = _getQueryTimeout()
 					);
 					counter.updated++;
 				}
@@ -491,6 +510,7 @@ component {
 					, requires_scanning    = true
 					, last_scan_process_id = _getProcessId()
 					, last_scanned         = _getProcessTimestamp()
+					, timeout              = _getQueryTimeout()
 				}
 				, filter = { id=unchangedContentRecordIds }
 			);
@@ -508,12 +528,17 @@ component {
 			filter[ "record_id" ] = arguments.recordIds;
 		}
 
-		var q      = _getContentRecordDao().selectData( selectFields=[ "id", "label", "orphaned" ], filter=filter );
+		var q = _getContentRecordDao().selectData(
+			  selectFields = [ "id", "label", "orphaned" ]
+			, filter       = filter
+			, timeout      = _getQueryTimeout()
+		);
+
 		var result = { labels={}, orphaned={} };
 
 		loop query="q" {
-			result.labels[ q.id ]    = q.label;
-			result.orphaned[ q.id ]  = q.orphaned;
+			result.labels[ q.id ]   = q.label;
+			result.orphaned[ q.id ] = q.orphaned;
 		}
 
 		return result;
@@ -557,8 +582,15 @@ component {
 			}
 		}
 
-		var filter                   = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
-		var q                        = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );
+		var q = $getPresideObjectService().selectData(
+			  objectName   = arguments.objectName
+			, selectFields = selectFields
+			, filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {}
+			, autoGroupBy  = true
+			, useCache     = false
+			, timeout      = _getQueryTimeout()
+		);
+
 		var propName                 = "";
 		var propValue                = "";
 		var sourceRecordId           = "";
@@ -624,6 +656,7 @@ component {
 		return _getDependencyDao().deleteData(
 			  filter       = "content_record in (:content_record) and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
 			, filterParams = { content_record=arguments.sourceRecordIds, last_scan_process_id=_getProcessId() }
+			, timeout      = _getQueryTimeout()
 		);
 	}
 
@@ -645,14 +678,15 @@ component {
 		var isSoftReference = isEmpty( arguments.objectName ); // soft references have no object name, only hard references do (FKs) - for soft references we just know the UUID
 
 		result.updated = _getDependencyDao().updateData(
-			  data   = {
+			  data    = {
 				last_scan_process_id = _getProcessId()
 			}
-			, filter = {
+			, filter  = {
 				  content_record           = arguments.sourceRecordId
 				, content_record_field     = arguments.fieldName
 				, dependent_content_record = mappedTargetRecordIds
 			}
+			, timeout = _getQueryTimeout()
 		);
 
 		if ( mappedTargetRecordIdCount > result.updated ) {
@@ -711,7 +745,7 @@ component {
 			var result = createObject( "java", "java.util.HashSet" ).init();
 
 			if ( _cacheAllRecords() ) {
-				var records = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true );
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true, timeout=_getQueryTimeout() );
 
 				if ( records.recordCount ) {
 					result.addAll( queryColumnData( records, "record_id" ) );
@@ -731,7 +765,7 @@ component {
 		}
 
 		// soft caching only and not found - check the DB
-		var foundInDb = _getContentRecordDao().dataExists( filter={ record_id=arguments.recordId } );
+		var foundInDb = _getContentRecordDao().dataExists( filter={ record_id=arguments.recordId }, timeout=_getQueryTimeout() );
 
 		if ( foundInDb ) {
 			_addTrackedContentRecordId( arguments.recordId );
@@ -751,7 +785,7 @@ component {
 			var result  = {};
 
 			if ( _cacheAllRecords() ) {
-				var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ] );
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ], timeout=_getQueryTimeout() );
 
 				loop query="records" {
 					result[ "#records.object_name#_#records.record_id#" ] = records.id;
@@ -818,6 +852,7 @@ component {
 		var record = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id" ]
+			, timeout      = _getQueryTimeout()
 		);
 
 		if ( record.recordCount ) {
@@ -880,6 +915,7 @@ component {
 			, selectFields = [ "object_name", "record_id" ]
 			, orderby      = "datemodified"
 			, maxRows      = arguments.batchSize
+			, timeout      = _getQueryTimeout()
 		);
 
 		var result = {};
@@ -898,6 +934,7 @@ component {
 		return _getContentRecordDao().selectData(
 			  filter          = { requires_scanning=true }
 			, recordCountOnly = true
+			, timeout         = _getQueryTimeout()
 		);
 	}
 
@@ -927,8 +964,13 @@ component {
 		}
 
 		q.setSQL( arguments.sql );
+		q.setTimeout( _getQueryTimeout() );
 
 		return q.execute().getResult();
+	}
+
+	private numeric function _getQueryTimeout() {
+		return _getConfiguration().getQueryTimeout();
 	}
 
 // GETTERS AND SETTERS

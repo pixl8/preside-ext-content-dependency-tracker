@@ -4,6 +4,7 @@
 
 * sys setting to enable/disable record caching during full and delta scanning (try different settings for performance benefits)
 * dependency counts now real fields and not formulas anymore (improves performance when dealing with lots of tracked content objects)
+* new system setting to define a timeout for the dependency tracker queries which differs from the default Preside query timeout
 
 ## v0.7.4
 
