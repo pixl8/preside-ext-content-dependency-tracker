@@ -372,10 +372,20 @@ component {
 	}
 
 	public void function flagContentRecordForScanning( required string objectName, required string id ) {
-		_getContentRecordDao().updateData(
-			  data   = { requires_scanning=true }
-			, filter = { object_name=arguments.objectName, record_id=arguments.id }
-		);
+		try {
+			_getContentRecordDao().updateData(
+				  data    = { requires_scanning=true }
+				, filter  = { object_name=arguments.objectName, record_id=arguments.id }
+				, timeout = 1 // intentionally set to 1 second to avoid unnecessary blocking of the system
+			);
+		}
+		catch ( any e ) {
+			// ignored - this record will then be picked up by a full scan later
+			// a typical, and likely the only error that could happen here is a lock wait timeout (because the table is locked by another process)
+			// the function is called by the interceptor on change of a record, we do not want to increase the timeout here as this will slow down the whole request
+			e.message &= " (objectName: #arguments.objectName#, id: #arguments.id#, not critical - will be picked up by full scan later)";
+			$raiseError( e );
+		}
 	}
 
 	public void function flagContentRecordsDeleted( required string objectName, required array ids ) {
