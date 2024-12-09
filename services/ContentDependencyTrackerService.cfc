@@ -46,8 +46,9 @@ component {
 			_setFullProcessing( arguments.full );
 			_setProcessId( createUUID() );
 			_setProcessTimestamp( now() );
+			_storeSoftRecordCacheEnabled( arguments.full );
 
-			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#)..." );
+			logger.info( "Now scanning content records to track dependencies (Process ID: #_getProcessId()#, Full: #arguments.full#, FK Scanning enabled: #isForeignKeyScanningEnabled#, Soft Reference Scanning enabled: #isSoftReferenceScanningEnabled#, Soft Record Cache enabled: #_softCachingOnly()#)..." );
 
 			var contentRecordIdMap = {};
 			var objectNames        = _getConfiguration().getAllTrackableObjects();
@@ -69,16 +70,33 @@ component {
 
 			_cacheContentRecordData();
 
+			var totalContentRecordChangeCounts = { inserted=0, updated=0, unchanged=0 };
+			var counter                        = {};
+			var needsCountFieldUpdates         = _isFullProcessing();
+
 			for ( var objectName in objectNames ) {
-				_indexContentRecords(
+				counter = _indexContentRecords(
 					  objectName = objectName
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+
+				totalContentRecordChangeCounts.inserted  += counter.inserted;
+				totalContentRecordChangeCounts.updated   += counter.updated;
+				totalContentRecordChangeCounts.unchanged += counter.unchanged;
+
 				if ( $isInterrupted() ) {
 					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
 					return false;
 				}
+			}
+
+			if ( ( totalContentRecordChangeCounts.inserted + totalContentRecordChangeCounts.updated + totalContentRecordChangeCounts.unchanged ) > 0 ) {
+				logger.info( "Scanning of ALL content records completed (inserted: #totalContentRecordChangeCounts.inserted#, updated: #totalContentRecordChangeCounts.updated#, unchanged: #totalContentRecordChangeCounts.unchanged#)" );
+			}
+
+			if ( ( totalContentRecordChangeCounts.inserted + totalContentRecordChangeCounts.updated ) > 0 ) {
+				needsCountFieldUpdates = true;
 			}
 
 			if ( _isFullProcessing() ) {
@@ -86,22 +104,35 @@ component {
 					  data         = { orphaned=true }
 					, filter       = "orphaned = :orphaned and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
 					, filterParams = { orphaned=false, last_scan_process_id=_getProcessId() }
+					, timeout      = _getQueryTimeout()
 				);
 				if ( orphaned > 0 ) {
 					logger.info( "marked [#orphaned#] non-orphaned content record(s) as orphaned because not found during processing." );
 				}
 			}
 
+			var totalDependencyChangeCounts = { inserted=0, updated=0, deleted=0 };
+
 			for ( var objectName in objectNames ) {
-				_indexContentRecordDependencies(
+				counter = _indexContentRecordDependencies(
 					  objectName = objectName
 					, recordIds  = contentRecordIdMap[ objectName ] ?: []
 					, logger     = logger
 				);
+
+				totalDependencyChangeCounts.inserted += counter.inserted;
+				totalDependencyChangeCounts.updated  += counter.updated;
+				totalDependencyChangeCounts.deleted  += counter.deleted;
+
 				if ( $isInterrupted() ) {
 					logger.warn( "Operation was cancelled or interrupted. Safely quitting..." );
 					return false;
 				}
+			}
+
+			if ( ( totalDependencyChangeCounts.inserted + totalDependencyChangeCounts.updated + totalDependencyChangeCounts.deleted ) > 0 ) {
+				logger.info( "Processing of ALL content record dependencies completed (inserted: #totalDependencyChangeCounts.inserted#, updated: #totalDependencyChangeCounts.updated#, deleted: #totalDependencyChangeCounts.deleted#)" );
+				needsCountFieldUpdates = true;
 			}
 
 			var updated = 0;
@@ -116,8 +147,10 @@ component {
 					, filterParams    = { object_name=objectName, last_scan_process_id=_getProcessId(), hidden=false }
 					, data            = { hidden=true }
 					, setDateModified = false
+					, timeout         = _getQueryTimeout()
 				);
 				if ( updated > 0 ) {
+					needsCountFieldUpdates = true;
 					logger.info( "hiding [#updated#] [#objectName#] record(s) without dependencies" );
 				}
 				if ( $isInterrupted() ) {
@@ -128,38 +161,117 @@ component {
 
 			// remove scan flag from records that have been processed in this run
 			updated = _getContentRecordDao().updateData(
-				  filter          = { requires_scanning=true, last_scan_process_id=_getProcessId() }
+				  filter          = { last_scan_process_id=_getProcessId() }
 				, data            = { requires_scanning=false }
 				, setDateModified = false
+				, timeout         = _getQueryTimeout()
 			);
 			if ( updated > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Marked [#updated#] scanned content record(s) to not require scanning anymore (processed within this run)." );
 			}
 
 			// deal with orphaned content records
 			updated = _getContentRecordDao().updateData(
-				  filter          = { requires_scanning=true, orphaned=true }
+				  filter          = { orphaned=true, requires_scanning=true }
 				, data            = { requires_scanning=false, last_scan_process_id=_getProcessId(), last_scanned=_getProcessTimestamp() }
 				, setDateModified = false
+				, timeout         = _getQueryTimeout()
 			);
 			if ( updated > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Marked [#updated#] orphaned content record(s) to not require scanning anymore." );
 			}
 
 			deleted = _getDependencyDao().deleteData(
 				  filter       = "content_record in (select id from pobj_tracked_content_record where orphaned = :tracked_content_record.orphaned and last_scan_process_id = :tracked_content_record.last_scan_process_id)"
 				, filterParams = { "tracked_content_record.orphaned"=true, "tracked_content_record.last_scan_process_id"=_getProcessId() }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
+				needsCountFieldUpdates = true;
 				logger.info( "Removed [#deleted#] dependencies of orphaned content records." );
 			}
 
 			_clearCachedContentRecordData();
 
+			if ( needsCountFieldUpdates ) {
+				cacheContentRecordDependencyCounts( logger=logger );
+			}
+
 			logger.info( "Done." );
 
 			return true;
 		}
+	}
+
+	public boolean function cacheContentRecordDependencyCounts( any logger ) {
+
+		logger.info( "Now caching content record dependency counts..." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			SET
+				tcr.depends_on_count = 0
+			WHERE
+				NOT EXISTS (
+					SELECT 1 FROM pobj_tracked_content_record_dependency WHERE content_record = tcr.id
+				);
+		" );
+		logger.info( "Count caching: 'Uses' counts set to 0 where no related dependencies found." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			SET
+				tcr.dependent_by_count = 0
+			WHERE
+				NOT EXISTS (
+					SELECT 1 FROM pobj_tracked_content_record_dependency WHERE dependent_content_record = tcr.id
+				);
+		" );
+		logger.info( "Count caching: 'Used by' counts set to 0 where no related dependencies found." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			INNER JOIN
+				(
+					SELECT
+						  content_record
+						, count(id) AS depdendsOnCount
+					FROM
+						pobj_tracked_content_record_dependency
+					GROUP BY
+						content_record
+				) tcrd ON tcrd.content_record = tcr.id
+			SET
+				tcr.depends_on_count = tcrd.depdendsOnCount;
+		" );
+		logger.info( "Count caching: 'Uses' counts stored for records with related dependencies." );
+
+		_executePlainQuery( sql="
+			UPDATE
+				pobj_tracked_content_record tcr
+			INNER JOIN
+				(
+					SELECT
+						  dependent_content_record
+						, count(id) AS dependentByCount
+					FROM
+						pobj_tracked_content_record_dependency
+					GROUP BY
+						dependent_content_record
+				) tcrd ON tcrd.dependent_content_record = tcr.id
+			SET
+				tcr.dependent_by_count = tcrd.dependentByCount;
+		" );
+		logger.info( "Count caching: 'Used by' counts stored for records with related dependencies." );
+
+		logger.info( "Caching of content record dependency counts completed." );
+
+		return true;
 	}
 
 	public void function removeOrphanedContentRecords( any logger ) {
@@ -168,11 +280,13 @@ component {
 		_getDependencyDao().deleteData(
 			  filter       = "content_record in (select id from pobj_tracked_content_record where orphaned = :tracked_content_record.orphaned)"
 			, filterParams = { "tracked_content_record.orphaned"=true }
+			, timeout      = _getQueryTimeout()
 		);
 
 		var deleted = _getContentRecordDao().deleteData(
 			  filter       = "orphaned = :orphaned and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams = { orphaned=true }
+			, timeout      = _getQueryTimeout()
 		);
 		if ( deleted > 0 ) {
 			logger.info( "Removed [#deleted#] orphaned content record(s) that have no dependencies anymore" );
@@ -185,7 +299,7 @@ component {
 			  filter          = "orphaned = :orphaned and exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
 			, filterParams    = { orphaned=true }
 			, recordCountOnly = true
-			, useCache        = false
+			, timeout         = _getQueryTimeout()
 		);
 		if ( broken > 0 ) {
 			logger.info( "Found [#broken#] orphaned content record(s) that other content records depend on (Broken dependencies). Those have not been deleted." );
@@ -197,6 +311,7 @@ component {
 			deleted = _getDependencyDao().deleteData(
 				  filter       = "content_record.object_name not in (:validObjectNames) or dependent_content_record.object_name not in (:validObjectNames)"
 				, filterParams = { validObjectNames={ value=validObjectNames, type="cf_sql_varchar", list=true } }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
 				logger.info( "Removed [#deleted#] dependency record(s) which belong(s) to content records that are not tracked (anymore)" );
@@ -204,6 +319,7 @@ component {
 			deleted = _getContentRecordDao().deleteData(
 				  filter       = "object_name not in (:validObjectNames)"
 				, filterParams = { validObjectNames={ value=validObjectNames, type="cf_sql_varchar", list=true } }
+				, timeout      = _getQueryTimeout()
 			);
 			if ( deleted > 0 ) {
 				logger.info( "Removed [#deleted#] content record(s) that is/are not tracked (anymore)" );
@@ -217,7 +333,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id" ]
-			, useCache     = false
+			, timeout      = _getQueryTimeout()
 		);
 
 		for ( var record in records ) {
@@ -231,7 +347,7 @@ component {
 		var records = _getContentRecordDao().selectData(
 			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
 			, selectFields = [ "id", "label", "depends_on_count", "dependent_by_count" ]
-			, useCache     = false
+			, timeout      = _getQueryTimeout()
 		);
 
 		for ( var record in records ) {
@@ -256,10 +372,20 @@ component {
 	}
 
 	public void function flagContentRecordForScanning( required string objectName, required string id ) {
-		_getContentRecordDao().updateData(
-			  data   = { requires_scanning=true }
-			, filter = { object_name=arguments.objectName, record_id=arguments.id }
-		);
+		try {
+			_getContentRecordDao().updateData(
+				  data    = { requires_scanning=true }
+				, filter  = { object_name=arguments.objectName, record_id=arguments.id }
+				, timeout = 1 // intentionally set to 1 second to avoid unnecessary blocking of the system
+			);
+		}
+		catch ( any e ) {
+			// ignored - this record will then be picked up by a full scan later
+			// a typical, and likely the only error that could happen here is a lock wait timeout (because the table is locked by another process)
+			// the function is called by the interceptor on change of a record, we do not want to increase the timeout here as this will slow down the whole request
+			e.message &= " (objectName: #arguments.objectName#, id: #arguments.id#, not critical - will be picked up by full scan later)";
+			$raiseError( e );
+		}
 	}
 
 	public void function flagContentRecordsDeleted( required string objectName, required array ids ) {
@@ -309,11 +435,13 @@ component {
 	}
 
 // PRIVATE FUNCTIONS
-	private void function _indexContentRecords( required string objectName, required array recordIds, any logger ) {
+	private struct function _indexContentRecords( required string objectName, required array recordIds, any logger ) {
+
+		var counter = { inserted=0, updated=0, unchanged=0 };
 		var idField = $getPresideObjectService().getIdField( arguments.objectName );
 
 		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
-			return;
+			return counter;
 		}
 
 		var labelField             = $getPresideObjectService().getLabelField( arguments.objectName );
@@ -327,9 +455,14 @@ component {
 		var selectFields = [ "#idField# as id", "#labelField# as label" ];
 		var filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
 
-		var q = $getPresideObjectService().selectData( objectName=arguments.objectName, filter=filter, selectFields=selectFields, useCache=false );
+		var q = $getPresideObjectService().selectData(
+			  objectName   = arguments.objectName
+			, filter       = filter
+			, selectFields = selectFields
+			, useCache     = false
+			, timeout      = _getQueryTimeout()
+		);
 
-		var counter                   = { inserted=0, updated=0, unchanged=0 };
 		var data                      = {};
 		var trackedContentRecordId    = 0;
 		var unchangedContentRecordIds = [];
@@ -357,8 +490,9 @@ component {
 				trackedContentRecordId = _mapContentRecordId( recordId=q.id, objectName=arguments.objectName );
 				if ( orphanedMap[ trackedContentRecordId ] || ( recordLabels[ trackedContentRecordId ] != data.label ) ) {
 					_getContentRecordDao().updateData(
-						  data   = data
-						, filter = { id=trackedContentRecordId }
+						  data    = data
+						, filter  = { id=trackedContentRecordId }
+						, timeout = _getQueryTimeout()
 					);
 					counter.updated++;
 				}
@@ -386,12 +520,15 @@ component {
 					, requires_scanning    = true
 					, last_scan_process_id = _getProcessId()
 					, last_scanned         = _getProcessTimestamp()
+					, timeout              = _getQueryTimeout()
 				}
 				, filter = { id=unchangedContentRecordIds }
 			);
 		}
 
-		logger.info( "Scanning of [#arguments.objectName#] records completed (inserted: #counter.inserted#, updated: #counter.updated#, unchanged:#counter.unchanged#)" );
+		logger.info( "Scanning of [#arguments.objectName#] records completed (inserted: #counter.inserted#, updated: #counter.updated#, unchanged: #counter.unchanged#)" );
+
+		return counter;
 	}
 
 	private struct function _getRecordLabelAndOrphanedMaps( required string objectName, required array recordIds ) {
@@ -401,29 +538,36 @@ component {
 			filter[ "record_id" ] = arguments.recordIds;
 		}
 
-		var q      = _getContentRecordDao().selectData( selectFields=[ "id", "label", "orphaned" ], filter=filter, useCache=false );
+		var q = _getContentRecordDao().selectData(
+			  selectFields = [ "id", "label", "orphaned" ]
+			, filter       = filter
+			, timeout      = _getQueryTimeout()
+		);
+
 		var result = { labels={}, orphaned={} };
 
 		loop query="q" {
-			result.labels[ q.id ]    = q.label;
-			result.orphaned[ q.id ]  = q.orphaned;
+			result.labels[ q.id ]   = q.label;
+			result.orphaned[ q.id ] = q.orphaned;
 		}
 
 		return result;
 	}
 
-	private void function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
+	private struct function _indexContentRecordDependencies( required string objectName, required array recordIds, any logger ) {
+
+		var counter = { inserted=0, updated=0, deleted=0 };
 
 		var idField = $getPresideObjectService().getIdField( arguments.objectName );
 
 		if ( !Len( idField ) || ( !_isFullProcessing() && isEmpty( arguments.recordIds ) ) ) {
-			return;
+			return counter;
 		}
 
 		var props = _getConfiguration().getTrackingEnabledObjectProperties( arguments.objectName );
 
 		if ( isEmpty( props ) ) {
-			return;
+			return counter;
 		}
 
 		var isForeignKeyScanningEnabled    = _getConfiguration().isForeignKeyScanningEnabled();
@@ -448,8 +592,15 @@ component {
 			}
 		}
 
-		var filter                   = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {};
-		var q                        = $getPresideObjectService().selectData( objectName=arguments.objectName, selectFields=selectFields, filter=filter, autoGroupBy=true, useCache=false );
+		var q = $getPresideObjectService().selectData(
+			  objectName   = arguments.objectName
+			, selectFields = selectFields
+			, filter       = !_isFullProcessing() ? { "#idField#"=arguments.recordIds } : {}
+			, autoGroupBy  = true
+			, useCache     = false
+			, timeout      = _getQueryTimeout()
+		);
+
 		var propName                 = "";
 		var propValue                = "";
 		var sourceRecordId           = "";
@@ -507,12 +658,15 @@ component {
 		}
 
 		logger.info( "Processing of [#arguments.objectName#] content record dependencies completed (inserted: #counter.inserted#, updated: #counter.updated#, deleted: #counter.deleted#)" );
+
+		return counter;
 	}
 
 	private numeric function _deleteOrphanedDependencies( required array sourceRecordIds ) {
 		return _getDependencyDao().deleteData(
 			  filter       = "content_record in (:content_record) and (last_scan_process_id is null or last_scan_process_id != :last_scan_process_id)"
 			, filterParams = { content_record=arguments.sourceRecordIds, last_scan_process_id=_getProcessId() }
+			, timeout      = _getQueryTimeout()
 		);
 	}
 
@@ -534,14 +688,15 @@ component {
 		var isSoftReference = isEmpty( arguments.objectName ); // soft references have no object name, only hard references do (FKs) - for soft references we just know the UUID
 
 		result.updated = _getDependencyDao().updateData(
-			  data   = {
+			  data    = {
 				last_scan_process_id = _getProcessId()
 			}
-			, filter = {
+			, filter  = {
 				  content_record           = arguments.sourceRecordId
 				, content_record_field     = arguments.fieldName
 				, dependent_content_record = mappedTargetRecordIds
 			}
+			, timeout = _getQueryTimeout()
 		);
 
 		if ( mappedTargetRecordIdCount > result.updated ) {
@@ -597,11 +752,14 @@ component {
 	private any function _getTrackedContentRecordIds() {
 		return _simpleLocalCache( "getTrackedContentRecordIds", function() {
 
-			var records  = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true, useCache=false );
 			var result = createObject( "java", "java.util.HashSet" ).init();
 
-			if ( records.recordCount ) {
-				result.addAll( queryColumnData( records, "record_id" ) );
+			if ( _cacheAllRecords() ) {
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id" ], distinct=true, timeout=_getQueryTimeout() );
+
+				if ( records.recordCount ) {
+					result.addAll( queryColumnData( records, "record_id" ) );
+				}
 			}
 
 			return result;
@@ -609,7 +767,21 @@ component {
 	}
 
 	private boolean function _isTrackedContentRecordId( required any recordId ) {
-		return _getTrackedContentRecordIds().contains( arguments.recordId );
+
+		var foundInCache = _getTrackedContentRecordIds().contains( arguments.recordId );
+
+		if ( _cacheAllRecords() || foundInCache ) {
+			return foundInCache;
+		}
+
+		// soft caching only and not found - check the DB
+		var foundInDb = _getContentRecordDao().dataExists( filter={ record_id=arguments.recordId }, timeout=_getQueryTimeout() );
+
+		if ( foundInDb ) {
+			_addTrackedContentRecordId( arguments.recordId );
+		}
+
+		return foundInDb;
 	}
 
 	private void function _addTrackedContentRecordId( required string recordId ) {
@@ -620,11 +792,14 @@ component {
 	private struct function _getMappedContentRecordIds() {
 		return _simpleLocalCache( "getMappedContentRecordIds", function() {
 
-			var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ], useCache=false );
 			var result  = {};
 
-			loop query="records" {
-				result[ "#records.object_name#_#records.record_id#" ] = records.id;
+			if ( _cacheAllRecords() ) {
+				var records = _getContentRecordDao().selectData( selectFields=[ "record_id", "object_name", "id" ], timeout=_getQueryTimeout() );
+
+				loop query="records" {
+					result[ "#records.object_name#_#records.record_id#" ] = records.id;
+				}
 			}
 
 			return result;
@@ -637,6 +812,7 @@ component {
 	}
 
 	private numeric function _mapContentRecordId( required string objectName, required string recordId ) {
+		// assumes that _mappedContentRecordExists() has been called before
 		var mappings = _getMappedContentRecordIds();
 		return mappings[ arguments.objectName & "_" & arguments.recordId ] ?: 0;
 	}
@@ -675,18 +851,51 @@ component {
 	}
 
 	private boolean function _mappedContentRecordExists( required string objectName, required string recordId ) {
-		return structKeyExists( _getMappedContentRecordIds(), arguments.objectName & "_" & arguments.recordId );
+
+		var foundInCache = structKeyExists( _getMappedContentRecordIds(), arguments.objectName & "_" & arguments.recordId );
+
+		if ( _cacheAllRecords() || foundInCache ) {
+			return foundInCache;
+		}
+
+		// soft caching only and not found in cache - check the DB additionally
+		var record = _getContentRecordDao().selectData(
+			  filter       = { object_name=arguments.objectName, record_id=arguments.recordId }
+			, selectFields = [ "id" ]
+			, timeout      = _getQueryTimeout()
+		);
+
+		if ( record.recordCount ) {
+			_addMappedContentRecordId( objectName=arguments.objectName, recordId=arguments.recordId, mappedId=record.id );
+			return true;
+		}
+
+		return false;
 	}
 
 	private void function _cacheContentRecordData() {
 		_clearCachedContentRecordData();
-		_getTrackedContentRecordIds();
-		_getMappedContentRecordIds();
+		if ( _cacheAllRecords() ) {
+			_getTrackedContentRecordIds();
+			_getMappedContentRecordIds();
+		}
 	}
 
 	private void function _clearCachedContentRecordData() {
 		structDelete( _getLocalCache(), "getTrackedContentRecordIds" );
 		structDelete( _getLocalCache(), "getMappedContentRecordIds" );
+	}
+
+	private boolean function _softCachingOnly() {
+		return _softRecordCacheEnabled ?: false;
+	}
+
+	private boolean function _cacheAllRecords() {
+		return !_softCachingOnly();
+	}
+
+	private void function _storeSoftRecordCacheEnabled( required boolean full ) {
+		_softRecordCacheEnabled = arguments.full ? _getConfiguration().isSoftRecordCacheInFullScanEnabled() : _getConfiguration().isSoftRecordCacheInDeltaScanEnabled();
 	}
 
 	private array function _findUuids( required string content ) {
@@ -716,7 +925,7 @@ component {
 			, selectFields = [ "object_name", "record_id" ]
 			, orderby      = "datemodified"
 			, maxRows      = arguments.batchSize
-			, useCache     = false
+			, timeout      = _getQueryTimeout()
 		);
 
 		var result = {};
@@ -735,7 +944,7 @@ component {
 		return _getContentRecordDao().selectData(
 			  filter          = { requires_scanning=true }
 			, recordCountOnly = true
-			, useCache        = false
+			, timeout         = _getQueryTimeout()
 		);
 	}
 
@@ -765,8 +974,13 @@ component {
 		}
 
 		q.setSQL( arguments.sql );
+		q.setTimeout( _getQueryTimeout() );
 
 		return q.execute().getResult();
+	}
+
+	private numeric function _getQueryTimeout() {
+		return _getConfiguration().getQueryTimeout();
 	}
 
 // GETTERS AND SETTERS

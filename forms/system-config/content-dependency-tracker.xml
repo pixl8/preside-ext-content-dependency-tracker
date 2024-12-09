@@ -13,7 +13,10 @@
 	</tab>
 	<tab id="advanced">
 		<fieldset id="default">
-			<field name="delta_scanning_batch_size" control="spinner" />
+			<field name="delta_scanning_batch_size"      control="spinner" />
+			<field name="enable_soft_record_cache_full"  control="yesnoswitch" />
+			<field name="enable_soft_record_cache_delta" control="yesnoswitch" />
+			<field name="query_timeout"                  control="spinner" />
 		</fieldset>
 	</tab>
 </form>

@@ -158,6 +158,10 @@ There are a couple of switches you can turn on/off in the system settings, which
 * `Show hidden records`: whether content records flagged as `hidden` should be shown in the Dependency Tracker listing or not.
 * `Show all orphaned records`: On deletion content records are flagged as `orphaned`. This setting controls if those should be displayed in the Dependency Tracker listing or not.
 * `Single Record Scanning`: Will enable content records to be flagged as `requires_scanning` on insert/update/delete.
+* `Delta Scanning Batch Size`: The number of records to be scanned in a single task run when delta scanning (frequently scanning records marked to be scanned), leave empty to scan all flagged records in each run. Defining a limit will ensure that for massive data changes a single high frequent task run does not consume too much time and resources.
+* `Enable Soft Record Cache (Full Scan)`: By default all tracked records are cached in memory in each full scan. This can be disabled to reduce memory usage, but will increase the number of database queries. In case of performance issues, try enabling or disabling this option.
+* `Enable Soft Record Cache (Delta Scan)`: By default all tracked records are cached in memory in each delta scan. This can be disabled to reduce memory usage, but will increase the number of database queries. In case of performance issues, try enabling or disabling this option.
+* `Query Timeout`: The timeout in seconds for queries which the Dependency Tracker performs. If a query takes longer than this, it will be aborted. Pick a higher value if the Dependency Tracker has to deal with lots of records and you see query timeouts in the scheduled tasks. Leave empty to use the default timeout (Preside default is 100 seconds).
 
 If both FK + Soft Ref Scanning is disabled, the whole system is basically disabled.
 

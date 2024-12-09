@@ -31,4 +31,19 @@ component {
 	private boolean function scanFlaggedContentDependencies( event, rc, prc, logger ) {
 		return contentDependencyTrackerService.scanContentDependencies( full=false, logger=arguments.logger );
 	}
+
+	/**
+	 * Manually trigger the caching of content record dependencies counts within the tracked content records
+	 *
+	 * @displayName      [3] Cache content record dependencies counts
+	 * @displayGroup     Content
+	 * @exclusivityGroup ContentDependencyTracker
+	 * @schedule         disabled
+	 * @priority         10
+	 * @timeout          7200
+	 *
+	 */
+	private boolean function cacheContentRecordDependencyCounts( event, rc, prc, logger ) {
+		return contentDependencyTrackerService.cacheContentRecordDependencyCounts(logger=arguments.logger );
+	}
 }

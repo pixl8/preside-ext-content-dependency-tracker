@@ -6,11 +6,13 @@ component {
 
 // CONSTRUCTOR
 	/**
-     * @settings.inject coldbox:setting:contentDependencyTracker
-     */
-	public any function init( required any settings ) {
+	 * @settings.inject            coldbox:setting:contentDependencyTracker
+	 * @defaultQueryTimeout.inject coldbox:setting:queryTimeout.default
+	 */
+	public any function init( required any settings , numeric defaultQueryTimeout=0 ) {
 
 		_setSettings( arguments.settings );
+		_setDefaultQueryTimeout( arguments.defaultQueryTimeout );
 
 		_setLocalCache( {} );
 
@@ -247,6 +249,20 @@ component {
 
 	public boolean function hideAllIrrelevantContentRecords() {
 		return _isBooleanSystemSettingEnabled( setting="hide_all_irrelevant_records" );
+	}
+
+	public boolean function isSoftRecordCacheInFullScanEnabled() {
+		return _isBooleanSystemSettingEnabled( setting="enable_soft_record_cache_full" );
+	}
+
+	public boolean function isSoftRecordCacheInDeltaScanEnabled() {
+		return _isBooleanSystemSettingEnabled( setting="enable_soft_record_cache_delta" );
+	}
+
+	public numeric function getQueryTimeout() {
+		var timeout = $getPresideSetting( "content-dependency-tracker", "query_timeout");
+
+		return IsNumeric( timeout ) && timeout > 0 ? timeout : _getDefaultQueryTimeout();
 	}
 
 	public struct function getLinkToTrackerEventConfig() {
@@ -540,6 +556,13 @@ component {
 	}
 	private void function _setSettings( required any settings ) {
 		_settings = arguments.settings;
+	}
+
+	private numeric function _getDefaultQueryTimeout() {
+		return _defaultQueryTimeout;
+	}
+	private void function _setDefaultQueryTimeout( required numeric defaultQueryTimeout ) {
+		_defaultQueryTimeout = arguments.defaultQueryTimeout;
 	}
 
 	private struct function _getLocalCache() {
