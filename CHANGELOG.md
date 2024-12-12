@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.1
+
+* fixed a list param issue with plain queries
+
 ## v0.8.0
 
 * sys setting to enable/disable record caching during full and delta scanning (try different settings for performance benefits)

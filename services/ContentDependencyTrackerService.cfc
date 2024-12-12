@@ -734,12 +734,12 @@ component {
 					)
 				"
 				, params = {
-					  sourceRecordId  = { value=arguments.sourceRecordId, cfsqltype="cf_sql_bigint"            }
-					, fieldName       = { value=arguments.fieldName     , cfsqltype="cf_sql_varchar"           }
-					, targetRecordIds = { value=mappedTargetRecordIds   , cfsqltype="cf_sql_bigint", list=true }
-					, isSoftReference = { value=isSoftReference         , cfsqltype="cf_sql_bit"               }
-					, processId       = { value=_getProcessId()         , cfsqltype="cf_sql_varchar"           }
-					, datecreated     = { value=now()                   , cfsqltype="cf_sql_date"              }
+					  sourceRecordId  = { value=arguments.sourceRecordId            , cfsqltype="cf_sql_bigint"            }
+					, fieldName       = { value=arguments.fieldName                 , cfsqltype="cf_sql_varchar"           }
+					, targetRecordIds = { value=ArrayToList( mappedTargetRecordIds ), cfsqltype="cf_sql_bigint", list=true }
+					, isSoftReference = { value=isSoftReference                     , cfsqltype="cf_sql_bit"               }
+					, processId       = { value=_getProcessId()                     , cfsqltype="cf_sql_varchar"           }
+					, datecreated     = { value=now()                               , cfsqltype="cf_sql_date"              }
 				}
 			);
 
