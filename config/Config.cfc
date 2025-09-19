@@ -101,26 +101,27 @@ component {
 				, email_template_send_log_activity = { enabled=false }
 			}
 			, linkToTrackerEvents = {
-				  "admin.datamanager.viewRecord"                      = { objectNameParam="object"     , recordIdParam="id"       }
-				, "admin.datamanager.editRecord"                      = { objectNameParam="object"     , recordIdParam="id"       }
-				, "admin.assetmanager.editAsset"                      = { objectName="asset"           , recordIdParam="asset"    }
-				, "admin.sites.editSite"                              = { objectName="site"            , recordIdParam="id"       }
-				, "admin.sitetree.editPage"                           = { objectName="page"            , recordIdParam="id"       }
-				, "admin.emailcenter.systemTemplates.template"        = { objectName="email_template"  , recordIdParam="template" }
-				, "admin.emailcenter.systemTemplates.edit"            = { objectName="email_template"  , recordIdParam="template" }
-				, "admin.emailcenter.systemTemplates.configurelayout" = { objectName="email_template"  , recordIdParam="template" }
-				, "admin.emailcenter.systemTemplates.stats"           = { objectName="email_template"  , recordIdParam="template" }
-				, "admin.emailcenter.systemTemplates.logs"            = { objectName="email_template"  , recordIdParam="template" }
-				, "admin.emailCenter.customTemplates.preview"         = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.emailcenter.customTemplates.edit"            = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.emailcenter.customTemplates.settings"        = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.emailcenter.customTemplates.configureLayout" = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.emailcenter.customTemplates.stats"           = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.emailcenter.customTemplates.logs"            = { objectName="email_template"  , recordIdParam="id"       }
-				, "admin.formbuilder.editForm"                        = { objectName="formbuilder_form", recordIdParam="id"       }
-				, "admin.formbuilder.submissions"                     = { objectName="formbuilder_form", recordIdParam="id"       }
-				, "admin.formbuilder.actions"                         = { objectName="formbuilder_form", recordIdParam="id"       }
-				, "admin.formbuilder.manageform"                      = { objectName="formbuilder_form", recordIdParam="id"       }
+				  "admin.datamanager.viewRecord"                       = { objectNameParam="object"          , recordIdParam="id"       }
+				, "admin.datamanager.editRecord"                       = { objectNameParam="object"          , recordIdParam="id"       }
+				, "admin.assetmanager.editAsset"                       = { objectName="asset"                , recordIdParam="asset"    }
+				, "admin.sites.editSite"                               = { objectName="site"                 , recordIdParam="id"       }
+				, "admin.sitetree.editPage"                            = { objectName="page"                 , recordIdParam="id"       }
+				, "admin.emailcenter.systemTemplates.template"         = { objectName="email_template"       , recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.edit"             = { objectName="email_template"       , recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.configurelayout"  = { objectName="email_template"       , recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.stats"            = { objectName="email_template"       , recordIdParam="template" }
+				, "admin.emailcenter.systemTemplates.logs"             = { objectName="email_template"       , recordIdParam="template" }
+				, "admin.emailCenter.customTemplates.preview"          = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.edit"             = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.settings"         = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.configureLayout"  = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.stats"            = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.emailcenter.customTemplates.logs"             = { objectName="email_template"       , recordIdParam="id"       }
+				, "admin.formbuilder.editForm"                         = { objectName="formbuilder_form"     , recordIdParam="id"       }
+				, "admin.formbuilder.submissions"                      = { objectName="formbuilder_form"     , recordIdParam="id"       }
+				, "admin.formbuilder.actions"                          = { objectName="formbuilder_form"     , recordIdParam="id"       }
+				, "admin.formbuilder.manageform"                       = { objectName="formbuilder_form"     , recordIdParam="id"       }
+				, "admin.datamanager.webflow_configuration.viewRecord" = { objectName="webflow_configuration", recordIdParam="id"       }
 			}
 		};
 
