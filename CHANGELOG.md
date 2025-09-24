@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.2
+
+* WF dependancy tracker menu item
+
 ## v0.8.1
 
 * fixed a list param issue with plain queries
