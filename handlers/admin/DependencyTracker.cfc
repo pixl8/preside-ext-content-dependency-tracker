@@ -5,7 +5,7 @@ component {
 
 	public string function linkToTracker( event, rc, prc ) {
 
-		if ( !configService.isEnabled() ) {
+		if ( !configService.isEnabled() || !hasCmsPermission( "dependencyTracker.navigate" ) ) {
 			return "";
 		}
 
