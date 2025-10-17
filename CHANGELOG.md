@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.3
+
+* Apply translation manager CI action
+
 ## v0.8.2
 
 * WF dependancy tracker menu item
