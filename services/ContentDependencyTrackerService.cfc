@@ -143,7 +143,7 @@ component {
 					continue;
 				}
 				updated = _getContentRecordDao().updateData(
-					  filter          = "object_name = :object_name and (hidden is null or hidden = :hidden) and last_scan_process_id = :last_scan_process_id and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
+					  filter          = "object_name = :object_name and (hidden is null or hidden = :hidden) and last_scan_process_id = :last_scan_process_id and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id) and not exists (select 1 from pobj_tracked_content_record_dependency d where d.dependent_content_record = tracked_content_record.id)"
 					, filterParams    = { object_name=objectName, last_scan_process_id=_getProcessId(), hidden=false }
 					, data            = { hidden=true }
 					, setDateModified = false
@@ -284,7 +284,7 @@ component {
 		);
 
 		var deleted = _getContentRecordDao().deleteData(
-			  filter       = "orphaned = :orphaned and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
+			  filter       = "orphaned = :orphaned and not exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id) and not exists (select 1 from pobj_tracked_content_record_dependency d where d.dependent_content_record = tracked_content_record.id)"
 			, filterParams = { orphaned=true }
 			, timeout      = _getQueryTimeout()
 		);
@@ -296,7 +296,7 @@ component {
 		}
 
 		var broken = _getContentRecordDao().selectData(
-			  filter          = "orphaned = :orphaned and exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id or d.dependent_content_record = tracked_content_record.id)"
+			  filter          = "orphaned = :orphaned and ( exists (select 1 from pobj_tracked_content_record_dependency d where d.content_record = tracked_content_record.id) or exists (select 1 from pobj_tracked_content_record_dependency d where d.dependent_content_record = tracked_content_record.id) )"
 			, filterParams    = { orphaned=true }
 			, recordCountOnly = true
 			, timeout         = _getQueryTimeout()
