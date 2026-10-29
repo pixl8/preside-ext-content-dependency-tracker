@@ -10,7 +10,7 @@
 component {
 	property name="label"                type="string"  dbtype="varchar" maxlength=500   required=true renderer="trackedContentRecordLabelRenderer";
 	property name="id"                   type="numeric" dbtype="bigint"                  required=true generator="increment";
-	property name="object_name"          type="string"  dbtype="varchar" maxlength=50    required=true renderer="objectName" uniqueIndexes="objectNameAndRecordId|1" indexes="lastScannedObjectNamesHidden|1" enum="dependencyTrackerObjectNames";
+	property name="object_name"          type="string"  dbtype="varchar" maxlength=64    required=true renderer="objectName" uniqueIndexes="objectNameAndRecordId|1" indexes="lastScannedObjectNamesHidden|1" enum="dependencyTrackerObjectNames";
 	property name="record_id"            type="string"  dbtype="varchar" maxlength=35    required=true                       uniqueIndexes="objectNameAndRecordId|2" indexes="recordId";
 	property name="orphaned"             type="boolean" dbtype="bit"     default="false" required=true                                                               indexes="requiresScanningOrphaned|2,orphanedLastScannedProcessId|1";
 	property name="hidden"               type="boolean" dbtype="bit"     default="false" required=true                                                               indexes="hidden,lastScannedObjectNamesHidden|3";
